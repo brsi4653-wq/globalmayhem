@@ -59,8 +59,11 @@ body { background: #fbeef0; }
 /* Moving band: pink into sunset orange */
 html.fx-marquee .marquee { background: var(--sunset-band); }
 
-/* Studio block: the teal water */
+/* Studio block: the teal water. On the home page the Work section above it
+   shares the same colour, so the two read as one block. */
 .studio { background: var(--sunset-water); border-top: 0; }
+main:has(.stage--home) { background: linear-gradient(180deg, #d3ece1 0%, #d3ece1 40%, #a9d2cf 75%, #75a9c6 100%); }
+main:has(.stage--home) .studio { background: transparent; }
 
 /* Footer: night sky */
 .footer { background: var(--sunset-night); border-top: 3px solid transparent; border-image: var(--sunset-band) 1; }
