@@ -38,7 +38,7 @@ layout: layouts/base.njk
       <li><span class="steps__num">3</span><div><h3>Follow the installer</h3><p>It checks your Claude Code setup. Then press <strong>Alt+Space</strong>.</p></div></li>
     </ol>
 
-    <p class="product__req"><strong>Requirements:</strong> Windows 11, and Claude Code installed and signed in with a paid Claude plan.</p>
+    <p class="product__req"><strong>Requirements:</strong> Windows 11 with transparency effects on, and Claude Code installed and signed in with a paid Claude plan.</p>
 
     <div class="product__note">
       <h3 class="label">What you're downloading</h3>
@@ -49,6 +49,11 @@ layout: layouts/base.njk
         <li><span class="aitag">AI was used in the making</span> OnRecord was built with the help of AI.</li>
         <li>SHA-256 checksum: <span data-sha><a href="{{ app.releases }}">see the release notes</a></span></li>
       </ul>
+    </div>
+
+    <div class="product__note relnotes" data-notes hidden>
+      <h3 class="label">Latest release notes</h3>
+      <div data-notes-body></div>
     </div>
   </div>
 </section>
@@ -63,6 +68,23 @@ fetch("{{ app.latestApi }}", { headers: { Accept: "application/vnd.github+json" 
     var v = document.querySelector("[data-version]");
     v.textContent = "Version " + m[1];
     v.hidden = false;
+    // The release notes, shown as plain paragraphs and bullet lists.
+    var esc = function (t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
+    var inline = function (t) { return esc(t).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>"); };
+    var html = "", list = false;
+    String(rel.body || "").split(/\r?\n/).forEach(function (line) {
+      line = line.trim();
+      var item = /^[-*]\s+(.*)$/.exec(line);
+      if (item) { if (!list) { html += "<ul>"; list = true; } html += "<li>" + inline(item[1]) + "</li>"; return; }
+      if (list) { html += "</ul>"; list = false; }
+      if (line) html += "<p>" + inline(line) + "</p>";
+    });
+    if (list) html += "</ul>";
+    if (html) {
+      document.querySelector("[data-notes-body]").innerHTML = html;
+      document.querySelector("[data-notes] .label").textContent = "Latest release notes: " + (rel.name || m[1]);
+      document.querySelector("[data-notes]").hidden = false;
+    }
     var file = (rel.assets || []).filter(function (a) { return a.name === "OnRecord-Setup.exe"; })[0];
     var sha = file && /^sha256:([0-9a-f]{64})$/.exec(file.digest || "");
     if (sha) {
