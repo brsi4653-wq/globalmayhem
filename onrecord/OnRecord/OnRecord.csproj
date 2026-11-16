@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- Windows 11 SDK projection: gives us Windows.UI.Composition for the acrylic backdrop -->
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.22000.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>OnRecord</AssemblyName>
+    <RootNamespace>OnRecord</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Product>OnRecord</Product>
+    <Company>Global Mayhem</Company>
+    <Copyright>© Global Mayhem</Copyright>
+    <Version>1.0.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <ApplicationIcon>Assets\onrecord.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="Assets\onrecord.ico" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\onrecord-tray.ico" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\logo-64.png" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Default rules; copied to %LOCALAPPDATA%\GlobalMayhem\OnRecord\rules.txt on first run (the user edits that copy) -->
+    <None Include="..\rules.txt" Link="rules.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="1.6.0" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+  </ItemGroup>
+
+</Project>

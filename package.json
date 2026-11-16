@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Global Mayhem news site. Built with Eleventy, hosted on GitHub Pages.",
+  "description": "Global Mayhem site. Built with Eleventy, published to Cloudflare Pages.",
   "scripts": {
     "build": "eleventy",
     "start": "eleventy --serve"

@@ -9,8 +9,8 @@
 # the real site alone. Add PREVIEW_FX=1 to show the effects panel on it.
 #
 # The upload is done from a folder outside the repo, because wrangler
-# writes its own settings files wherever it runs. The "functions" folder
-# (the comments system) has to sit beside the built site for the upload.
+# writes its own settings files wherever it runs. Only the built site
+# (_site) is uploaded. The onrecord folder is never part of it.
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
@@ -23,7 +23,6 @@ npx eleventy
 rm -rf "$work"
 mkdir -p "$work"
 cp -r _site "$work/site"
-cp -r functions "$work/functions"
 
 cd "$work"
 CI=1 npx -y wrangler@latest pages deploy site --project-name globalmayhem --branch "${DEPLOY_BRANCH:-main}" --commit-dirty=true

@@ -18,18 +18,13 @@
 
 <meta property="og:site_name" content="{{ site.name }}">
 <meta property="og:locale" content="en_CA">
-<meta property="og:type" content="{% if isArticle %}article{% else %}website{% endif %}">
+<meta property="og:type" content="website">
 <meta property="og:title" content="{{ title or site.name }}">
 <meta property="og:description" content="{{ pageDescription }}">
 <meta property="og:url" content="{{ canonical }}">
 <meta property="og:image" content="{{ shareImage }}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-{%- if isArticle %}
-<meta property="article:published_time" content="{{ page.date | iso }}">
-<meta property="article:modified_time" content="{{ (updated or page.date) | iso }}">
-{% if section %}<meta property="article:section" content="{{ section | sectionName }}">{% endif %}
-{%- endif %}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ title or site.name }}">
 <meta name="twitter:description" content="{{ pageDescription }}">
@@ -38,7 +33,6 @@
 <meta name="twitter:site" content="{{ site.xHandle }}">
 {%- endif %}
 
-<link rel="alternate" type="application/rss+xml" title="{{ site.name }}" href="{{ '/feed.xml' | absolute }}">
 <link rel="icon" href="{{ '/assets/logo/mayhem-favicon.svg' | url }}" type="image/svg+xml">
 <link rel="icon" href="{{ '/assets/logo/mayhem-favicon-32.png' | url }}" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="{{ '/assets/logo/mayhem-favicon-180.png' | url }}">
@@ -47,13 +41,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&family=JetBrains+Mono:wght@400;500;700&family=Inter+Tight:wght@500;600;700&display=swap">
-{%- if bare %}
-<link rel="stylesheet" href="{{ '/assets/css/profile.css' | url }}?v={{ buildTime | version }}">
-{%- else %}
 <link rel="stylesheet" href="{{ '/assets/css/site.css' | url }}?v={{ buildTime | version }}">
 {# Temporary sunset theme. Delete this one line (and the theme files) to go back to the normal look. #}
 <link rel="stylesheet" href="{{ '/assets/css/theme-sunset.css' | url }}?v={{ buildTime | version }}">
-{%- endif %}
 {%- if schema %}
 <script type="application/ld+json">{{ schema | jsonld | safe }}</script>
 {%- endif %}
@@ -133,34 +123,9 @@ addEventListener("pagereveal", function (e) {
       {% set markClass = "mark--pink" %}{% include "mark.njk" %}
       <span class="lockup__word">{{ site.displayName }}</span>
     </a>
-    <nav class="nav" aria-label="Main">
-      {%- for item in site.nav %}
-      <a href="{{ item.url | url }}"{% if page.url and page.url.indexOf(item.url) == 0 %} aria-current="true"{% endif %}>{{ item.name }}</a>
-      {%- endfor %}
-    </nav>
   </div>
 </header>
 
-{%- if (site.preview or "ticker" in site.effects) and collections.posts.length %}
-{%- set wireStories = collections.posts.slice(0, 8) %}
-{%- set wireReps = (8 / wireStories.length) | round(0, "ceil") %}
-<div class="wire" style="--wire-time: {{ wireStories.length * wireReps * 9 }}s">
-  <span class="wire__label">New</span>
-  <div class="wire__window">
-    <div class="wire__track">
-      {%- for half in range(0, 2) %}
-      <div class="wire__half"{% if half == 1 %} aria-hidden="true"{% endif %}>
-        {%- for rep in range(0, wireReps) %}
-        {%- for story in wireStories %}
-        <a class="wire__item" href="{{ story.url | url }}"{% if half == 1 or rep > 0 %} tabindex="-1"{% endif %}>{% set markClass = "mark--pink" %}{% include "mark.njk" %}<span>{{ story.data.title }}</span></a>
-        {%- endfor %}
-        {%- endfor %}
-      </div>
-      {%- endfor %}
-    </div>
-  </div>
-</div>
-{%- endif %}
 
 {%- endif %}
 <main id="main">
@@ -174,27 +139,11 @@ addEventListener("pagereveal", function (e) {
       {% set markClass = "mark--pink" %}{% include "mark.njk" %}
       <span class="footer__tagline">{{ site.name }}</span>
     </div>
-    <nav class="footer__nav" aria-label="Site">
-      {%- for item in site.nav %}
-      <a href="{{ item.url | url }}">{{ item.name }}</a>
-      {%- endfor %}
-    </nav>
-    <div class="socials">
-      <h2 class="socials__title">Socials</h2>
-      {%- for social in site.socials %}
-      <a class="socials__btn" href="{{ social.url }}" rel="noopener">{{ social.name }} <span>{{ social.handle }}</span></a>
-      {%- endfor %}
-    </div>
+    <p class="footer__note">OnRecord is an independent project by Global Mayhem. It is not affiliated with or endorsed by Anthropic.</p>
+    <p class="footer__note">OnRecord is open source under the <a href="{{ site.onrecord.license }}">MIT License</a>.</p>
     <p class="footer__legal">&copy; {{ buildTime | year }} {{ site.name }}. Made in Canada.</p>
   </div>
 </footer>
-<script>
-// Live labels and the Breaking bar carry an end time. Once it has passed,
-// remove them, so they switch off on their own without a new publish.
-document.querySelectorAll("[data-until]").forEach(function (el) {
-  if (Date.now() > Date.parse(el.getAttribute("data-until"))) el.remove();
-});
-</script>
 {%- if site.preview %}{% include "fx-panel.njk" %}{% endif %}
 {%- endif %}
 </body>

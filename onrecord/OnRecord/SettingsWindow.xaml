@@ -1,0 +1,64 @@
+<Window x:Class="OnRecord.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="OnRecord settings" Width="520" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" Background="#1E1E22" Foreground="#EDEDED"
+        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13.5" ShowInTaskbar="True">
+    <Window.Resources>
+        <ResourceDictionary Source="Themes/DarkDialog.xaml"/>
+    </Window.Resources>
+
+    <StackPanel Margin="24,20,24,20">
+        <!-- Model -->
+        <TextBlock Text="Claude model" Style="{StaticResource Heading}"/>
+        <TextBox x:Name="ModelBox"/>
+        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+            <Button Style="{StaticResource Chip}" Content="CLI default" Tag="" Click="ModelPreset_Click"/>
+            <Button Style="{StaticResource Chip}" Content="opus" Tag="opus" Click="ModelPreset_Click"/>
+            <Button Style="{StaticResource Chip}" Content="sonnet" Tag="sonnet" Click="ModelPreset_Click"/>
+            <Button Style="{StaticResource Chip}" Content="haiku" Tag="haiku" Click="ModelPreset_Click"/>
+        </StackPanel>
+        <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
+                   Text="An alias (opus, sonnet, haiku) or a full model name. Leave empty for the CLI's default. Applies from the next new chat (pencil button, or closing and reopening the popup)."/>
+
+        <!-- Shortcut -->
+        <TextBlock Text="Shortcut" Style="{StaticResource Heading}" Margin="0,22,0,6"/>
+        <WrapPanel x:Name="HotkeyChips"/>
+        <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,0"
+                   Text="Opens OnRecord from anywhere. If another app (for example PowerToys Run, Copilot or ChatGPT) already uses a shortcut, pick a different one here."/>
+
+        <!-- Colours -->
+        <TextBlock Text="Modes" Style="{StaticResource Heading}" Margin="0,22,0,6"/>
+        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,10"
+                   Text="Claude picks a mode for each reply and the popup takes its colour. Click a swatch to pick a colour; the line under each mode tells Claude when to use it. OnRecord keeps rules.txt up to date for you. Changes apply from the next new chat."/>
+        <StackPanel x:Name="ModeRows"/>
+        <WrapPanel Margin="0,2,0,0">
+            <Button Style="{StaticResource Chip}" Content="+ Add mode" Click="AddMode_Click" Margin="0,0,6,6"/>
+            <Button Style="{StaticResource Chip}" Content="Reset to defaults" Click="ResetColors_Click" Margin="0,0,6,6"/>
+            <Button Style="{StaticResource Chip}" Content="Open rules.txt" Click="OpenRules_Click" Margin="0,0,6,6"/>
+            <Button Style="{StaticResource Chip}" Content="Restore default rules" Click="RestoreRules_Click" Margin="0,0,6,6"/>
+        </WrapPanel>
+
+        <!-- Permissions -->
+        <TextBlock Text="Permissions" Style="{StaticResource Heading}" Margin="0,22,0,6"/>
+        <CheckBox x:Name="ReadAnywhereBox" Foreground="#EDEDED" VerticalContentAlignment="Center"
+                  Content="Let Claude read and search files anywhere on this PC"/>
+        <TextBlock Style="{StaticResource Hint}" Margin="22,6,0,0"
+                   Text="Off: Claude can only read files in its own workspace folder. On: it can open and search any file you can, without asking each time, for example to find a document for you. Anything it reads is sent to Claude, and a web page it visits could try to trick it into sharing a file, so only turn this on if you're comfortable with that. It can never change or delete files outside its workspace, or run programs. Applies from the next new chat."/>
+
+        <TextBlock x:Name="ErrorText" Foreground="#FF7B7B" TextWrapping="Wrap" Margin="0,14,0,0" Visibility="Collapsed"/>
+
+        <DockPanel Margin="0,20,0,0">
+            <!-- About line -->
+            <StackPanel x:Name="AboutLine" Orientation="Horizontal" VerticalAlignment="Center">
+                <Image x:Name="AboutLogo" Width="22" Height="22" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                <TextBlock x:Name="AboutText" Style="{StaticResource Hint}" VerticalAlignment="Center"/>
+            </StackPanel>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Style="{StaticResource Btn}" Content="Cancel" Margin="0,0,8,0" IsCancel="True" Click="Cancel_Click"/>
+            <Button x:Name="SaveButton" Style="{StaticResource Btn}" Content="Save" Background="#FF8A3D"
+                    Foreground="#1A1A1A" FontWeight="SemiBold" IsDefault="True" Click="Save_Click"/>
+        </StackPanel>
+        </DockPanel>
+    </StackPanel>
+</Window>

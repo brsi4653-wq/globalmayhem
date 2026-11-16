@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="OnRecord.Tests/OnRecord.Tests.csproj" />
+  <Project Path="OnRecord/OnRecord.csproj" />
+</Solution>
