@@ -4,9 +4,8 @@ const repo = "brsi4653-wq/globalmayhem";
 export default {
   name: "Global Mayhem", // official and legal name: titles, footer, metadata
   displayName: "MAYHEM", // the name shown in the header and logo lockups
-  tagline: "Film and content studio", // the short line under the name
   description:
-    "Global Mayhem is a Canadian film and content studio. Our product OnRecord is a glass Alt+Space popup for Windows that runs your own Claude Code.",
+    "Global Mayhem makes OnRecord, a glass Alt+Space popup for Windows that runs your own Claude Code.",
   url: (process.env.SITE_URL || "https://globalmayhem.org").replace(/\/$/, ""),
   language: "en-CA",
   // The X account named in link previews.

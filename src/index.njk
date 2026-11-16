@@ -5,7 +5,6 @@ layout: layouts/base.njk
 <section class="stage stage--home stage--short">
   <div class="stage__mark" aria-hidden="true">{% set markClass = "" %}{% include "mark.njk" %}</div>
   <div class="wrap stage__inner">
-    <p class="stage__tag" data-scramble>{{ site.tagline }}</p>
     <h1 class="stage__title" data-rise>{{ site.name }}</h1>
   </div>
 </section>
@@ -47,6 +46,7 @@ layout: layouts/base.njk
         <li>The OnRecord installer for Windows.</li>
         <li>It installs for your user only. No admin rights needed.</li>
         <li>Open source. <a href="{{ app.code }}">Read the code</a>.</li>
+        <li><span class="aitag">AI was used in the making</span> OnRecord was built with the help of AI.</li>
         <li>SHA-256 checksum: <span data-sha><a href="{{ app.releases }}">see the release notes</a></span></li>
       </ul>
     </div>

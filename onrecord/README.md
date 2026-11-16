@@ -8,6 +8,8 @@ Press Alt+Space anywhere, ask Claude, attach files and see what it builds for yo
 
 OnRecord is made by [Global Mayhem](https://globalmayhem.org).
 
+AI was used in the making of OnRecord.
+
 ## Requirements
 
 - Windows 11

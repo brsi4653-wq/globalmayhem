@@ -8,8 +8,8 @@ export default class {
 
   async render(data) {
     return ogCard({
-      headline: data.site.tagline,
-      label: "Studio",
+      headline: data.site.onrecord.name,
+      label: "Our product",
       footer: data.site.url.replace(/^https?:\/\//, ""),
     });
   }
