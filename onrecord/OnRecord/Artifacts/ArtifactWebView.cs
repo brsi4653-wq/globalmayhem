@@ -5,8 +5,8 @@ using Microsoft.Web.WebView2.Core;
 namespace OnRecord.Artifacts;
 
 /// <summary>
-/// The only WebView2 in the app. Created when an artifact opens, fully closed (browser processes
-/// released) when the preview closes.
+/// The artifact/PDF preview's WebView2 (web pages from WEB lines use Web.WebPageView, with a separate profile).
+/// Created when an artifact opens, fully closed (browser processes released) when the preview closes.
 ///
 /// Artifact pages are UNTRUSTED (Claude wrote them, possibly after reading web pages):
 ///  - served from a virtual https host mapped to the artifacts folder only, never as file:// (so they can't

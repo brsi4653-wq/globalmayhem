@@ -27,7 +27,11 @@ public partial class SettingsWindow : Window
         ModelBox.Text = settings.Model;
         ReadAnywhereBox.IsChecked = settings.AllowReadAnywhere;
         var version = typeof(SettingsWindow).Assembly.GetName().Version;
-        AboutText.Text = $"{AppPaths.AppName} {version?.ToString(3)} · by {AppPaths.Publisher}";
+        // Release name per major version, from <Codename> in OnRecord.csproj (e.g. "1.1.1 (Applesauce)").
+        string? codename = typeof(SettingsWindow).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+            .OfType<System.Reflection.AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "Codename")?.Value;
+        string name = string.IsNullOrWhiteSpace(codename) ? "" : $" ({codename})";
+        AboutText.Text = $"{AppPaths.AppName} {version?.ToString(3)}{name} · by {AppPaths.Publisher}";
         try
         {
             var logo = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "logo-64.png");

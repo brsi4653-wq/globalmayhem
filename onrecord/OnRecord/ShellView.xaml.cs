@@ -87,14 +87,48 @@ public partial class ShellView : UserControl
     /// <param name="userFile">A file from a file card: buttons become "Open" / "Show in File Explorer".</param>
     public void ShowPreview(string fileName, bool userFile = false)
     {
-        PreviewFileName.Text = fileName;
-        PreviewFileName.ToolTip = fileName;
+        SetPreviewTitle(fileName);
+        PreviewIcon.Text = "";
         PreviewOpenButton.Content = userFile ? "Open" : "Open in browser";
         PreviewShowFileButton.Content = userFile ? "Show in File Explorer" : "Show file";
+        PreviewShowFileButton.Visibility = Visibility.Visible;
+        PreviewBackButton.Visibility = PreviewReloadButton.Visibility = Visibility.Collapsed;
         ClearNativePreview();
         PreviewPanel.Visibility = Visibility.Visible;
         UpdateSplitLayout();
     }
+
+    /// <summary>Opens the panel for a web page: title, Back, Reload, "Open in browser" and close.</summary>
+    public void ShowWebPreview(string title)
+    {
+        SetPreviewTitle(title);
+        PreviewIcon.Text = ""; // globe
+        PreviewOpenButton.Content = "Open in browser";
+        PreviewShowFileButton.Visibility = Visibility.Collapsed;
+        PreviewBackButton.Visibility = PreviewReloadButton.Visibility = Visibility.Visible;
+        SetWebCanGoBack(false);
+        ClearNativePreview();
+        PreviewPanel.Visibility = Visibility.Visible;
+        UpdateSplitLayout();
+    }
+
+    public void SetPreviewTitle(string title)
+    {
+        title = new string(title.Where(c => !char.IsControl(c)).ToArray()).Trim();
+        PreviewFileName.Text = title;
+        PreviewFileName.ToolTip = title.Length > 0 ? title : null;
+    }
+
+    public void SetWebCanGoBack(bool canGoBack)
+    {
+        PreviewBackButton.IsEnabled = canGoBack;
+        PreviewBackButton.Opacity = canGoBack ? 1 : 0.35;
+    }
+
+    public event Action? PreviewBackRequested;
+    public event Action? PreviewReloadRequested;
+    private void PreviewBack_Click(object sender, RoutedEventArgs e) => PreviewBackRequested?.Invoke();
+    private void PreviewReload_Click(object sender, RoutedEventArgs e) => PreviewReloadRequested?.Invoke();
 
     /// <summary>Shows an already decoded image natively (the web view stays closed).</summary>
     public void ShowNativeImage(System.Windows.Media.Imaging.BitmapSource image)

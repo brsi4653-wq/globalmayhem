@@ -7,7 +7,10 @@
 #define AppExe "OnRecord.exe"
 #define AppMutex "Local\OnRecord.7f3c2a91.mutex"
 #ifndef AppVersion
-  #define AppVersion "1.1.0"
+  #define AppVersion "1.2.1"
+#endif
+#ifndef AppCodename
+  #define AppCodename "Applesauce"
 #endif
 #ifndef PublishDir
   #define PublishDir "..\publish\win-x64"
@@ -17,7 +20,7 @@
 AppId={{6E0C6B1E-4F7A-4E0B-9C1D-0B5E8A3F2D71}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppVerName={#AppName} {#AppVersion}
+AppVerName={#AppName} {#AppVersion} ({#AppCodename})
 AppPublisher={#AppPublisher}
 AppCopyright=© {#AppPublisher}
 VersionInfoCompany={#AppPublisher}

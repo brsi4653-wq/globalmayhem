@@ -37,6 +37,8 @@ Get-FileHash OnRecord-Setup.exe -Algorithm SHA256
 - Attach files with the **+** button, by dragging them onto the popup, or with Ctrl+V (copied files or a screenshot).
 - When Claude makes a page or a tool, it opens in a preview panel beside the chat.
 - When Claude finds files or folders for you, each one shows as a card with a thumbnail, an Open button and "Show in File Explorer". Nothing opens by itself, only when you click.
+- Ask to see a webpage or article and it opens in the side panel, beside the chat.
+- Ask to open an app by name and OnRecord opens it, the same as clicking it in Start. If more than one app matches, you pick from buttons.
 - **X** hides OnRecord to the tray and ends the chat. The next Alt+Space starts a new one.
 - Settings (the gear, or the tray icon) hold the model, the colours, the shortcut and the permissions.
 

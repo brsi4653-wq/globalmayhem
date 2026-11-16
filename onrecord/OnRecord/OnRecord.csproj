@@ -15,7 +15,9 @@
     <Product>OnRecord</Product>
     <Company>Global Mayhem</Company>
     <Copyright>© Global Mayhem</Copyright>
-    <Version>1.1.0</Version>
+    <Version>1.2.1</Version>
+    <!-- Release name: one per major version (all 1.x = Applesauce). Shown in About and the installer. -->
+    <Codename>Applesauce</Codename>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationIcon>Assets\onrecord.ico</ApplicationIcon>
   </PropertyGroup>
@@ -26,6 +28,10 @@
     <None Include="Assets\logo-64.png" CopyToOutputDirectory="PreserveNewest" />
     <!-- Default rules; copied to %LOCALAPPDATA%\GlobalMayhem\OnRecord\rules.txt on first run (the user edits that copy) -->
     <None Include="..\rules.txt" Link="rules.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="Codename" Value="$(Codename)" />
   </ItemGroup>
 
   <ItemGroup>

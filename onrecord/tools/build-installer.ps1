@@ -11,6 +11,7 @@ Set-Location $root
 [xml]$proj = Get-Content "OnRecord\OnRecord.csproj"
 $version = ($proj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
 if (-not $version) { throw "No <Version> in OnRecord.csproj" }
+$codename = ($proj.Project.PropertyGroup | Where-Object { $_.Codename } | Select-Object -First 1).Codename
 
 $releaseDir = Join-Path $root ("dist\releases\{0}_{1}" -f $version, (Get-Date -Format "yyyy-MM-dd"))
 $setupExe = Join-Path $releaseDir "OnRecord-Setup-$version.exe"
@@ -30,6 +31,6 @@ $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFile
         Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "Inno Setup 6 not found. Install it with: winget install JRSoftware.InnoSetup --scope user" }
 New-Item -ItemType Directory -Force $releaseDir | Out-Null
-& $iscc /Q "/DAppVersion=$version" "/DPublishDir=$publish" "/O$releaseDir" "installer\OnRecord.iss"
+& $iscc /Q "/DAppVersion=$version" "/DAppCodename=$codename" "/DPublishDir=$publish" "/O$releaseDir" "installer\OnRecord.iss"
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
 Get-Item $setupExe

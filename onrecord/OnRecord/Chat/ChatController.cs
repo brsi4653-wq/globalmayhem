@@ -18,18 +18,22 @@ public sealed class ChatController
     private readonly Func<bool> _allowReadAnywhere;
     private readonly HashSet<string> _shownProblems = new(); // show each rules.txt problem once per app run
     private readonly List<ITagHandler> _tagHandlers;
-    private readonly Queue<string> _queue = new();
+    /// <summary>Messages sent while Claude replies, with whether each one asked to open something (for LAUNCH).</summary>
+    private readonly Queue<(string Message, bool LaunchAllowed)> _queue = new();
 
     private ClaudeSession? _session;
     private bool _busy;
     private AssistantMessageView? _reply;
     private ReplyFilter? _filter;
+    private bool _webOpenedInReply;
+    private bool _launchAllowed;      // the user's message for this reply asked to open something
+    private bool _launchHandledInReply;
 
     /// <param name="onMode">Called when Claude's reply carries a known [tint:mode] tag.</param>
     /// <param name="onArtifact">Called with the file name from an "ARTIFACT: name" line.</param>
     /// <param name="previewFile">Shows a file from a card in the side panel; false if it can't be previewed there.</param>
     public ChatController(ChatPanel panel, Dispatcher ui, Func<string?> model, Func<bool> allowReadAnywhere, Action<string> onMode,
-        Action<string> onArtifact, Func<string, bool> previewFile)
+        Action<string> onArtifact, Func<string, bool> previewFile, Action<string> onWeb)
     {
         _panel = panel;
         _ui = ui;
@@ -45,11 +49,73 @@ public sealed class ChatController
                 onArtifact(name);
             }),
             new OpenTagHandler(raw => AddFileCard(raw, previewFile)),
+            new WebTagHandler(raw =>
+            {
+                // Only the first WEB line of a reply does anything (later ones are hidden and ignored).
+                if (_reply == null || _webOpenedInReply) return;
+                _webOpenedInReply = true;
+                string url = Web.WebTargets.ToUrl(raw);
+                _reply.AddArtifactChip(Web.WebTargets.Label(url), () => onWeb(url), "", "Open page");
+                onWeb(url);
+            }),
+            new LaunchTagHandler(name =>
+            {
+                // Only the first LAUNCH line, and only if the user's own message asked to open something.
+                if (_reply == null || _launchHandledInReply) return;
+                _launchHandledInReply = true;
+                if (!_launchAllowed) { Platform.InstalledApps.Trace("ignored LAUNCH: the message didn't ask to open anything"); return; }
+                _ = LaunchAsync(_reply, name);
+            }),
         ];
         _panel.Submitted += Submit;
     }
 
     public bool IsBusy => _busy;
+
+    private const string AppGlyph = ""; // "All apps"
+
+    /// <summary>A LAUNCH line: find the name in the installed apps list; one match opens, several ask, none says so.</summary>
+    private async Task LaunchAsync(AssistantMessageView reply, string name)
+    {
+        string shown = Shorten(name);
+        if (Platform.AppMatcher.LooksLikePath(name))
+        {
+            reply.AddNotice(NoticeKind.Blocked, $"Didn't open \"{shown}\": apps are opened by name only, never by a path or address.");
+            return;
+        }
+        reply.HasPendingNotice = true; // the reply may finish before the app list is ready
+        try { await LaunchCoreAsync(reply, name, shown); }
+        finally { reply.HasPendingNotice = false; }
+    }
+
+    private async Task LaunchCoreAsync(AssistantMessageView reply, string name, string shown)
+    {
+        var apps = await Platform.InstalledApps.GetAsync();
+        var match = Platform.AppMatcher.Match(name, apps);
+        Platform.InstalledApps.Trace($"\"{shown}\" -> {match.Kind}: {string.Join(", ", match.Apps.Select(a => a.Name))}");
+        switch (match.Kind)
+        {
+            case Platform.AppMatcher.Kind.One:
+                await OpenAppAsync(reply, match.Apps[0]);
+                break;
+            case Platform.AppMatcher.Kind.Several:
+                reply.AddSmallLine(AppGlyph, $"Several apps match \"{shown}\". Pick one:");
+                foreach (var app in match.Apps)
+                    reply.AddArtifactChip(app.Name, () => _ = OpenAppAsync(reply, app), AppGlyph, "Open this app");
+                break;
+            default:
+                reply.AddSmallLine("", $"Couldn't find an installed app called {shown}");
+                break;
+        }
+    }
+
+    private static async Task OpenAppAsync(AssistantMessageView reply, Platform.AppEntry app)
+    {
+        string? problem = await Platform.InstalledApps.LaunchAsync(app);
+        Platform.InstalledApps.Trace(problem == null ? $"opened {app.Name}" : $"failed {app.Name}: {problem}");
+        if (problem == null) reply.AddSmallLine(AppGlyph, $"Opened {app.Name}");
+        else reply.AddNotice(NoticeKind.Error, $"Couldn't open {app.Name}: {problem}");
+    }
 
     /// <summary>An "OPEN: path" line: a card under the reply, only for a real local path that exists right now.</summary>
     private void AddFileCard(string raw, Func<string, bool> previewFile)
@@ -142,6 +208,7 @@ public sealed class ChatController
             return;
         }
         _panel.AddUserMessage(text, paths.Select(Path.GetFileName).ToList()!);
+        bool launchAllowed = Platform.LaunchIntent.Asked(text); // the typed words only, not attachment paths
         text = Attachments.BuildMessage(text, paths);
         if (_session is not { IsRunning: true })
         {
@@ -150,15 +217,18 @@ public sealed class ChatController
         }
         if (_busy)
         {
-            _queue.Enqueue(text); // silent queue: sent when the current reply finishes
+            _queue.Enqueue((text, launchAllowed)); // silent queue: sent when the current reply finishes
             return;
         }
-        SendNow(text);
+        SendNow(text, launchAllowed);
     }
 
-    private void SendNow(string text)
+    private void SendNow(string text, bool launchAllowed)
     {
         _busy = true;
+        _webOpenedInReply = false;
+        _launchAllowed = launchAllowed;
+        _launchHandledInReply = false;
         _filter = new ReplyFilter(_tagHandlers);
         _reply = _panel.BeginAssistantMessage();
         _reply.SetStatus("Thinking…");
@@ -213,7 +283,7 @@ public sealed class ChatController
         _filter = null;
         _busy = false;
 
-        if (_queue.Count > 0) SendNow(_queue.Dequeue());
+        if (_queue.Count > 0) { var (message, launchAllowed) = _queue.Dequeue(); SendNow(message, launchAllowed); }
     }
 
     private void OnCrashed(int exitCode, string stderr)

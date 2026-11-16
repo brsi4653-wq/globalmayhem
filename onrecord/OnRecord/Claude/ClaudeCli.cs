@@ -138,12 +138,34 @@ public static partial class ClaudeCli
             // Don't inherit allow-rules or MCP servers from the user's other Claude Code setups.
             "--setting-sources", "",
             "--strict-mcp-config",
+            // Never the web profile (cookies, logins), even with read-anywhere on. Deny beats allow.
+            // One value per rule (not comma-joined), so a comma in a user name can't split a path.
+            "--disallowedTools",
         };
+        args.AddRange(DeniedPathRules());
         if (!string.IsNullOrWhiteSpace(rules))
             args.Add("--append-system-prompt=" + rules);
         if (!string.IsNullOrWhiteSpace(model) && IsSafeModel(model))
             args.Add("--model=" + model);
         return args;
+    }
+
+    /// <summary>
+    /// Deny rules for folders Claude must never touch. Claude Code wants absolute paths as "//c/Users/..." (verified
+    /// with CLI 2.1.325: a Read rule also covers Glob and Grep, Edit covers the writing tools, matching ignores case).
+    /// </summary>
+    public static IEnumerable<string> DeniedPathRules()
+    {
+        string folder = ToRulePath(AppPaths.WebProfile);
+        return [$"Read({folder}/**)", $"Edit({folder}/**)"];
+    }
+
+    /// <summary>C:\Users\x\Folder -> //c/Users/x/Folder (Claude Code's form for an absolute path in a permission rule).</summary>
+    public static string ToRulePath(string windowsPath)
+    {
+        string full = Path.GetFullPath(windowsPath).TrimEnd('\\');
+        if (full.Length < 3 || full[1] != ':') throw new ArgumentException("Expected a drive path", nameof(windowsPath));
+        return "//" + char.ToLowerInvariant(full[0]) + full[2..].Replace('\\', '/');
     }
 
     /// <summary>Model names like "opus", "claude-sonnet-5-5", "sonnet[1m]", "us.anthropic.x:0".</summary>

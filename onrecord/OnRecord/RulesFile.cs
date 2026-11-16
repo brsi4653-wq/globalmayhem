@@ -17,6 +17,16 @@ public static partial class RulesFile
     public const string OpenRule =
         "When you find files or folders the user wants to see or open, add one line per item, alone: OPEN: <full path>";
 
+    /// <summary>The 1.1.1 rule for web pages in the side panel.</summary>
+    public const string WebRule =
+        "When the user wants to see a webpage, article, or site, use web search to find the exact URL, then add this line alone: WEB: <url>. " +
+        "Use one WEB line per reply. Opening a new one replaces the current page.";
+
+    /// <summary>The 1.2.1 rule for opening installed apps.</summary>
+    public const string LaunchRule =
+        "When the user asks to open an app or program, add LAUNCH: <app name> alone on a line, using the app's name as it appears in the Start menu. " +
+        "Never put a file path in LAUNCH. Use OPEN for files and folders, WEB for websites.";
+
     [GeneratedRegex(@"^\s*\[tint:\s*([A-Za-z0-9_\-]+)\s*\]\s?(.*)$")]
     private static partial Regex TintLine();
 
@@ -38,6 +48,10 @@ public static partial class RulesFile
         "\n" +
         OpenRule + "\n" +
         "\n" +
+        WebRule + "\n" +
+        "\n" +
+        LaunchRule + "\n" +
+        "\n" +
         "When a message ends with \"Attached files:\" and file paths, the user attached those files: read them with the Read tool (it handles images and PDFs) before answering.\n";
 
     public static string ReadBundled()
@@ -55,12 +69,14 @@ public static partial class RulesFile
     public static string Sanitize(string? description)
     {
         string s = description ?? "";
-        s = Regex.Replace(s, @"[\r\n\t  \u0085]+", " ");          // one line only
+        s = Regex.Replace(s, @"[\r\n\tâ€¨â€©\u0085]+", " ");          // one line only
         s = Regex.Replace(s, @"[\x00-\x1F\x7F]", "");                         // other control chars
         s = Regex.Replace(s, @"\[[^\]]*\]", " ");                              // [tag-like] text
         s = s.Replace("[", "").Replace("]", "").Replace("{", "").Replace("}", "");
         s = Regex.Replace(s, @"ARTIFACT\s*:", "", RegexOptions.IgnoreCase);    // artifact tag text
         s = Regex.Replace(s, @"\bOPEN\s*:", "", RegexOptions.IgnoreCase);      // file card tag text
+        s = Regex.Replace(s, @"\bWEB\s*:", "", RegexOptions.IgnoreCase);       // web page tag text
+        s = Regex.Replace(s, @"\bLAUNCH\s*:", "", RegexOptions.IgnoreCase);    // app launch tag text
         s = Regex.Replace(s, @"\s{2,}", " ").Trim();
         if (s.Length > MaxDescriptionLength) s = s[..MaxDescriptionLength].TrimEnd();
         return s;

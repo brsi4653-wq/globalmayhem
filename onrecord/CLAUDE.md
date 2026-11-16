@@ -15,8 +15,8 @@ Later it will gain more modes and tools (system search, web search, Discord bots
 
 ## Fixed tech decisions (do not change without asking the project owner)
 - C# + WPF on .NET 10 (current LTS). No Rust, Electron, Tauri. Keep RAM as low as possible.
-- Main UI is native WPF. WebView2 is ONLY for the artifact preview panel: it is
-  created when an artifact opens and disposed when it closes.
+- Main UI is native WPF. WebView2 is ONLY for the side preview panel (artifacts, PDFs, web pages from WEB lines):
+  created when something opens there and disposed when it closes. Never a separate browser program.
 - Chat markdown is rendered natively (Markdig + our own small WPF renderer), not in a web view.
 - Talk to Claude ONLY by running the `claude` CLI as a child process. Never read,
   copy or reuse the login token. Never call the Anthropic API directly.
@@ -118,6 +118,49 @@ Later it will gain more modes and tools (system search, web search, Discord bots
   Programs, scripts and shortcuts (`FileTargets.ProgramExtensions`: .exe .bat .cmd .ps1 .vbs .js .msi .lnk .url …)
   ask first ("Run it" / Cancel, Cancel is the default). Existence is re-checked on every click.
 
+## Web pages in the side panel: WEB tag (1.1.1)
+- rules.txt (and `RulesFile.WebRule` in `FallbackDefault`) tells Claude to find the exact URL with web search and add
+  `WEB: <url>` alone on a line, one per reply. No migration of older rules.txt files (decided by the owner).
+- `WebTagHandler` (`Chat/TagHandlers.cs`) hides the line (held back while streaming like the other tags); only the first
+  WEB line of a reply acts. `Web/WebTargets.ToUrl`: only absolute http/https with a host opens as a page, anything else
+  (text, file:, javascript:, data:, custom protocols) becomes a Google search. Each WEB line also leaves a chip to reopen it.
+- `Web/WebPageView.cs`: same panel as artifacts (a web page replaces an artifact/PDF and the reverse). Header in web mode:
+  title, Back, Reload, "Open in browser" (current URL, default browser), close. No tabs, no address bar.
+- Its OWN environment + persistent profile `%LOCALAPPDATA%\GlobalMayhem\OnRecord\web` (logins survive restarts; never
+  shared with the artifact profile `preview-webview`). The environment object lives for the app run; each page gets a new
+  controller (old one closed after the new one exists, so its renderer ends). With no page left the browser process
+  exits; the kept environment starts a new one on the next page (verified), with a fallback that recreates it.
+- New-tab links load in the panel. Sized pop-ups (OAuth sign-in) open in `Web/WebPopupWindow` (owned window, same
+  environment, keeps window.opener). External protocol launches are blocked; downloads always go to Downloads.
+- Closing the panel, new chat, X / hide to tray, an artifact or a file preview all close the page and its pop-ups.
+- Claude can never read or edit the web profile, even with read-anywhere: `ClaudeCli.DeniedPathRules` passes
+  `--disallowedTools Read(//c/.../web/**) Edit(//c/.../web/**)` (Claude Code's `//c/...` form; a Read rule also covers
+  Glob/Grep; verified with CLI 2.1.325).
+- Test switch: `ONRECORD_TRACE_WEB=1` logs page events (host and scheme only) to `logs\web-trace.log`.
+- Known risk: Google may refuse account sign-in inside WebView2 ("This browser or app may not be secure"). Don't work around it.
+
+## Open Everything: LAUNCH tag, open installed apps (1.2.1)
+- rules.txt (and `RulesFile.LaunchRule` in `FallbackDefault`): when the user asks to open an app, Claude adds
+  `LAUNCH: <app name>` alone on a line, using the Start menu name. Never a path. OPEN is for files, WEB for websites.
+  No migration of older rules.txt files (decided by the owner).
+- `LaunchTagHandler` (`Chat/TagHandlers.cs`) hides the line, held back while streaming like the other tags. Only the first
+  LAUNCH line of a reply acts, and only if the user's own typed message asked to open something (`Platform.LaunchIntent`:
+  open, launch, start, run, play, load, boot, fire up, bring up, pull up). Otherwise it is hidden and ignored.
+- The app list (`Platform/InstalledApps.cs`) is read from `shell:AppsFolder` (the same list as All apps in Start: desktop
+  programs, Microsoft Store apps, Steam and other Start shortcuts) on one background STA thread. It is re-read on every
+  Alt+Space open (about 0.4 s for ~190 apps), and read on first use otherwise.
+- Matching (`Platform/AppMatcher.cs`), case-insensitive, first step that finds anything wins: exact name as written, exact
+  name ignoring punctuation, names containing the query as whole words, names the query contains, then near spellings
+  (1 letter off, 2 for long names). One app: it opens and the reply gets a small "Opened X" line. Several: a small line
+  plus one button per app (up to 8), nothing opens until one is clicked. None: "Couldn't find an installed app called X".
+- Launching is exactly a click in Start: `ShellExecuteEx` with the item's shell ID list (SEE_MASK_INVOKEIDLIST) captured
+  when the list was read. Nothing Claude writes is ever used as a path, ID or command. Names that look like a path, URL or
+  command (\ / : % .exe .lnk) are refused with a Blocked notice.
+- Test switches: `ONRECORD_TRACE_LAUNCH=1` logs list size, matches and launches (app names only) to `logs\launch-trace.log`;
+  `ONRECORD_TEST_NO_EXTERNAL=1` also stops LAUNCH from opening anything (logs "would launch").
+- Expected behaviour (owner approved): a name that is also a website (e.g. "open GeoGuessr") may get a WEB line, because
+  the request is ambiguous. Once the user says which ("the GeoGuessr Steam Edition game"), Claude uses LAUNCH. Don't change it.
+
 ## Hidden Easter egg mode (1.1.0)
 - `Modes.Hidden` holds built-in modes that are always known to the tint tag but never listed, edited, removed or
   reset in Settings (`Modes.Visible` is what Settings shows), never saved in settings.json (a hand-added entry is
@@ -174,6 +217,9 @@ Later it will gain more modes and tools (system search, web search, Discord bots
   into `dist\releases\<Version>_<build date>\OnRecord-Setup-<Version>.exe`, e.g.
   `dist\releases\1.1.0_2026-11-16\OnRecord-Setup-1.1.0.exe`. Version comes from `<Version>` in OnRecord.csproj
   (the About line and the installer read it from there; the .iss default is only a fallback).
+- Release names: one per major version, `<Codename>` in OnRecord.csproj (all 1.x = "Applesauce"). Shown as
+  "OnRecord 1.2.1 (Applesauce)" in About and the installer's AppVerName. Pick a new name only for a new major version.
+  The owner sets the number: a new feature bumps the middle number (1.1.1 web pages, 1.2.1 LAUNCH).
 - Installer archive: EVERY installer ever built is kept so any version can be tested later. Never delete, move or
   overwrite one; the script stops if the target exists. 1.0.0 is in `dist\releases\1.0.0_2026-11-15\`.
   (`dist\OnRecord-Setup.exe` is an untouched leftover copy of 1.0.0.) `dist\` is not in git.
@@ -207,6 +253,8 @@ Later it will gain more modes and tools (system search, web search, Discord bots
 - Line 1 `[tint:<mode>]` switches mode/colour (animated). Unknown/missing: keep the current mode.
 - Any line `ARTIFACT: file.html` opens that file from the artifacts folder in the preview panel.
 - Any line `OPEN: <full path>` shows a file card for that file or folder (never opens it by itself).
+- A line `WEB: <url>` opens that page in the side panel (first one per reply; see "Web pages in the side panel").
+- A line `LAUNCH: <app name>` opens that installed app (first one per reply, only when the user asked to open something).
 - The system prompt is rules.txt followed by the app's built-in blocks (`Claude/BuiltInRules.cs`).
 - Implemented as a list of tag handlers so new tags can be added, each with its own action.
 
@@ -224,3 +272,18 @@ End: Windows installer
 
 ## Working rules
 - Build and run the app after every change, and fix errors before reporting a step as done.
+
+## Published (public)
+- Public home: GitHub repo `brsi4653-wq/globalmayhem` (the globalmayhem.org site repo). OnRecord source is in its `onrecord/` folder
+  (with a README and an MIT LICENSE that exist only there). There is no separate OnRecord repo.
+- The public copy has its own clean history (author = the GitHub noreply address). Never push THIS repo's history: it holds a private email.
+  To publish: export the committed files (`git archive`) into `onrecord/` of the site repo and commit there.
+- Never public: `dist\`, `dist\backup`, anything from `%LOCALAPPDATA%`, logs, traces, uncommitted work.
+- Releases (tag `onrecord-v<version>`, asset named exactly `OnRecord-Setup.exe`):
+  - 1.0.0, 2026-11-16: https://github.com/brsi4653-wq/globalmayhem/releases/tag/onrecord-v1.0.0
+  - 1.1.0, 2026-11-16, from commit edb9b5f: https://github.com/brsi4653-wq/globalmayhem/releases/tag/onrecord-v1.1.0
+    (SHA-256 4bb7bd384e3a6fc9d8afdff28999513e54aaf887e3cc1f98903f1e64521e8b88). The voice work was not committed then and is not public.
+- Website: https://globalmayhem.org is a download page. Its button uses
+  `https://github.com/brsi4653-wq/globalmayhem/releases/latest/download/OnRecord-Setup.exe`, and the version, checksum and
+  release notes on the page are read from the latest GitHub release, so a new release updates the page by itself.
+- The site is on Cloudflare Pages by direct upload (`scripts/deploy.sh` in the site repo). Pushing to GitHub does not publish it.

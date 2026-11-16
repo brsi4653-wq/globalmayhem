@@ -21,6 +21,11 @@ public static class AppPaths
     public static string Logs => Path.Combine(Root, "logs");
     /// <summary>WebView2 profile used ONLY by the artifact preview (untrusted pages).</summary>
     public static string PreviewWebViewData => Path.Combine(Root, "preview-webview");
+    /// <summary>
+    /// Persistent WebView2 profile for web pages from WEB lines (logins, cookies). Never shared with the artifact
+    /// preview, and Claude may never read it (see <see cref="Claude.ClaudeCli.BuildArguments"/>).
+    /// </summary>
+    public static string WebProfile => Path.Combine(Root, "web");
 
     public static string ExePath => Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "OnRecord.exe");
 

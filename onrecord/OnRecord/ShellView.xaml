@@ -167,8 +167,13 @@
                                     Margin="0,0,6,0" Click="PreviewShowFile_Click"/>
                             <Button x:Name="PreviewOpenButton" DockPanel.Dock="Right" Style="{StaticResource LightTextButton}" Content="Open in browser"
                                     Margin="0,0,6,0" Click="PreviewOpenBrowser_Click"/>
+                            <!-- Web pages only: Back and Reload (no tabs, no address bar) -->
+                            <Button x:Name="PreviewBackButton" DockPanel.Dock="Left" Style="{StaticResource LightIconButton}"
+                                    Content="&#xE72B;" ToolTip="Back" Margin="-6,0,6,0" Visibility="Collapsed" Click="PreviewBack_Click"/>
+                            <Button x:Name="PreviewReloadButton" DockPanel.Dock="Left" Style="{StaticResource LightIconButton}"
+                                    Content="&#xE72C;" ToolTip="Reload" Margin="0,0,10,0" Visibility="Collapsed" Click="PreviewReload_Click"/>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="&#xE8A5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14"
+                                <TextBlock x:Name="PreviewIcon" Text="&#xE8A5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14"
                                            Foreground="#666" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <TextBlock x:Name="PreviewFileName" FontSize="13.5" FontWeight="SemiBold" Foreground="#222"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>

@@ -49,7 +49,8 @@ public partial class MainWindow : Window
             allowReadAnywhere: () => _settings.AllowReadAnywhere,
             onMode: mode => Shell.ApplyMode(mode),    // animated tint change
             onArtifact: name => _ = OpenArtifactAsync(name),
-            previewFile: PreviewFile);                // file cards: bigger preview in the side panel
+            previewFile: PreviewFile,                 // file cards: bigger preview in the side panel
+            onWeb: url => _ = OpenWebAsync(url));     // WEB lines: the page in the side panel
         Shell.NewChatRequested += () =>
         {
             ClosePreview();
@@ -59,8 +60,14 @@ public partial class MainWindow : Window
         };
 
         Shell.PreviewCloseRequested += () => { ClosePreview(); Shell.FocusInput(_host); };
+        Shell.PreviewBackRequested += () => _page.GoBack();
+        Shell.PreviewReloadRequested += () => _page.Reload();
+        _page.TitleChanged += title => { if (_previewWeb) Shell.SetPreviewTitle(title.Length > 0 ? title : Web.WebTargets.Label(_page.CurrentUrl ?? "")); };
+        _page.HistoryChanged += canGoBack => { if (_previewWeb) Shell.SetWebCanGoBack(canGoBack); };
         Shell.PreviewOpenInBrowserRequested += () =>
         {
+            // The page's current address (after any clicks), in the user's default browser. http/https only.
+            if (_previewWeb) { ArtifactWebView.OpenLinkExternally(_page.CurrentUrl); return; }
             if (_previewUserFile != null) { ReportFileProblem(Chat.FileTargets.Open(_previewUserFile, this)); return; }
             if (_previewPath != null) ArtifactWebView.OpenFileInBrowser(_previewPath);
         };
@@ -104,6 +111,7 @@ public partial class MainWindow : Window
             // Every open after being closed = a brand new Claude session with no earlier context.
             Shell.ApplyMode(Modes.Default);
             _chat.NewChat();
+            Platform.InstalledApps.Refresh(); // background re-read, so newly installed apps can be launched right away
         }
     }
 
@@ -163,6 +171,8 @@ public partial class MainWindow : Window
             return;
         }
 
+        _page.Close();           // an artifact replaces a web page (its renderer and pop-ups end)
+        _previewWeb = false;
         _previewPath = path;
         _previewUserFile = null;
         MakeRoomForPreview();
@@ -183,6 +193,41 @@ public partial class MainWindow : Window
         {
             ClosePreview();
             Shell.Chat.AddNotice(Chat.NoticeKind.Error, $"Couldn't open the preview: {ex.Message}");
+        }
+    }
+
+    // ---------------------------------------------------------------- web pages (WEB lines)
+
+    /// <summary>Web pages: own environment + persistent profile, a fresh controller per page (see WebPageView).</summary>
+    private readonly Web.WebPageView _page = new();
+    /// <summary>True while the panel shows a web page.</summary>
+    private bool _previewWeb;
+
+    /// <summary>A "WEB: url" line (or its chip): the page replaces whatever the panel shows. url is already http/https.</summary>
+    private async Task OpenWebAsync(string url)
+    {
+        if (!Web.WebTargets.IsWebUrl(url)) return;
+        _web.Close();            // a web page replaces an artifact or PDF
+        _previewPath = null;
+        _previewUserFile = null;
+        _previewWeb = true;
+        MakeRoomForPreview();
+        Shell.ShowWebPreview(Web.WebTargets.Label(url));
+        try
+        {
+            await _page.OpenAsync(this, url);
+            if (!_previewWeb) return; // closed or replaced meanwhile
+            // The page is a sibling of the UI's child window; keep the UI at the bottom so the page shows.
+            SetWindowPos(_host.Handle, new IntPtr(1) /* HWND_BOTTOM */, 0, 0, 0, 0, 0x0013 /* NOSIZE|NOMOVE|NOACTIVATE */);
+            UpdateWebBounds();
+        }
+        catch (Exception ex)
+        {
+            if (!_previewWeb) return;
+            ClosePreview();
+            Shell.Chat.AddNotice(Chat.NoticeKind.Error, ex is WebView2RuntimeNotFoundException
+                ? "The WebView2 runtime isn't installed, so web pages can't be shown here."
+                : $"Couldn't open the web page: {ex.Message}");
         }
     }
 
@@ -207,6 +252,8 @@ public partial class MainWindow : Window
         if (kind == Chat.PreviewKind.Text && (text = ReadTextForPreview(path)) == null) return false; // binary after all
 
         _web.Close();            // never keep an old page around behind a native preview or a new PDF
+        _page.Close();
+        _previewWeb = false;
         _previewPath = null;
         _previewUserFile = path;
         MakeRoomForPreview();
@@ -314,6 +361,8 @@ public partial class MainWindow : Window
     public void ClosePreview()
     {
         _web.Close(); // disposes the WebView2 and releases its browser processes
+        _page.Close(); // same for a web page and its sign-in pop-ups
+        _previewWeb = false;
         _previewPath = null;
         _previewUserFile = null;
         if (Shell.IsPreviewOpen) Shell.HidePreview();
@@ -366,12 +415,16 @@ public partial class MainWindow : Window
         if (slot.IsEmpty)
         {
             _web.SetVisible(false);
+            _page.SetVisible(false);
             return;
         }
         double s = VisualTreeHelper.GetDpi(this).DpiScaleX;
         // The UI child window sits ShadowMargin inside the top-level window.
-        _web.SetBounds(new Rect((ShadowMargin + slot.X) * s, (ShadowMargin + slot.Y) * s, slot.Width * s, slot.Height * s));
+        var px = new Rect((ShadowMargin + slot.X) * s, (ShadowMargin + slot.Y) * s, slot.Width * s, slot.Height * s);
+        _web.SetBounds(px);
         _web.SetVisible(true);
+        _page.SetBounds(px);
+        _page.SetVisible(true);
     }
 
     public void SetPinned(bool pinned, bool save = true)

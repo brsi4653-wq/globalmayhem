@@ -59,7 +59,10 @@ public sealed class AssistantMessageView : StackPanel
         _renderTimer.Tick += (_, _) => { _renderTimer.Stop(); RenderNow(); };
     }
 
-    public bool IsEmpty => _markdown.Trim().Length == 0 && _notices.Children.Count == 0 && _cards.Children.Count == 0;
+    public bool IsEmpty => _markdown.Trim().Length == 0 && _notices.Children.Count == 0 && _cards.Children.Count == 0 && !HasPendingNotice;
+
+    /// <summary>Something (like an app launch) will add a line to this reply shortly: don't drop it as empty.</summary>
+    public bool HasPendingNotice { get; set; }
 
     /// <summary>Adds a file card (once per path per reply). Several cards stack under each other.</summary>
     public void AddFileCard(FileCard card)
@@ -84,13 +87,32 @@ public sealed class AssistantMessageView : StackPanel
 
     public void AddNotice(NoticeKind kind, string text) => _notices.Children.Add(CreateNotice(kind, text));
 
-    /// <summary>A small clickable chip for an artifact, so it can be reopened after the preview is closed.</summary>
-    public void AddArtifactChip(string fileName, Action open)
+    /// <summary>One small, quiet line under the reply (e.g. "Opened Spotify"), with an icon glyph.</summary>
+    public void AddSmallLine(string glyph, string text)
     {
+        var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 2) };
+        var brush = new SolidColorBrush(Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF));
+        line.Children.Add(new TextBlock
+        {
+            Text = glyph,
+            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+            FontSize = 12,
+            Foreground = brush,
+            Margin = new Thickness(0, 1, 7, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        line.Children.Add(new TextBlock { Text = text, FontSize = 12.5, Foreground = brush, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
+        _notices.Children.Add(line);
+    }
+
+    /// <summary>A small clickable chip for an artifact (or web page), so it can be reopened after the panel is closed.</summary>
+    public void AddArtifactChip(string fileName, Action open, string? icon = null, string toolTip = "Open preview")
+    {
+        if (fileName.Length > 70) fileName = fileName[..70] + "…";
         var content = new StackPanel { Orientation = Orientation.Horizontal };
         content.Children.Add(new TextBlock
         {
-            Text = "",
+            Text = icon ?? "\uE8A5",
             FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
             FontSize = 13,
             Margin = new Thickness(0, 1, 8, 0),
@@ -104,7 +126,7 @@ public sealed class AssistantMessageView : StackPanel
             Focusable = false,
             HorizontalAlignment = HorizontalAlignment.Left,
             Margin = new Thickness(0, 6, 0, 4),
-            ToolTip = "Open preview",
+            ToolTip = toolTip,
             Template = ChipTemplate(new Thickness(12, 6, 14, 6)),
             Foreground = new SolidColorBrush(Color.FromArgb(0xF0, 0xFF, 0xFF, 0xFF)),
         };

@@ -11,4 +11,8 @@ ARTIFACT: filename.html
 
 When you find files or folders the user wants to see or open, add one line per item, alone: OPEN: <full path>
 
+When the user wants to see a webpage, article, or site, use web search to find the exact URL, then add this line alone: WEB: <url>. Use one WEB line per reply. Opening a new one replaces the current page.
+
+When the user asks to open an app or program, add LAUNCH: <app name> alone on a line, using the app's name as it appears in the Start menu. Never put a file path in LAUNCH. Use OPEN for files and folders, WEB for websites.
+
 When a message ends with "Attached files:" and file paths, the user attached those files: read them with the Read tool (it handles images and PDFs) before answering.
