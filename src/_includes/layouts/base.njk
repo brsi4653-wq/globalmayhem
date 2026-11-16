@@ -6,7 +6,7 @@
 {%- set pageTitle %}{% if title %}{{ title }} | {{ site.name }}{% else %}{{ site.name }}{% endif %}{% endset %}
 {%- set pageDescription = description or site.description %}
 {%- set canonical = page.url | absolute %}
-{%- set shareImage = (ogImage or "/og/default.png") | absolute %}
+{%- set shareImage = (ogImage or "/og/onrecord-card.png") | absolute %}
 <title>{{ pageTitle | safe }}</title>
 <meta name="description" content="{{ pageDescription }}">
 <link rel="canonical" href="{{ canonical }}">

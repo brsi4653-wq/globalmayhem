@@ -3,7 +3,7 @@ import { ogCard } from "../lib/og-card.js";
 
 export default class {
   data() {
-    return { permalink: "/og/default.png", eleventyExcludeFromCollections: true };
+    return { permalink: "/og/onrecord-card.png", eleventyExcludeFromCollections: true };
   }
 
   async render(data) {
