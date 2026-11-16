@@ -16,6 +16,8 @@ public sealed class AssistantMessageView : StackPanel
     private readonly RichTextBox _body;
     private readonly TextBlock _status;
     private readonly StackPanel _notices;
+    private readonly StackPanel _cards;
+    private readonly HashSet<string> _cardPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer _renderTimer;
     private string _markdown = "";
     private string _rendered = "\0";
@@ -45,7 +47,10 @@ public sealed class AssistantMessageView : StackPanel
             Visibility = Visibility.Collapsed,
         };
         _notices = new StackPanel();
+        // Left-aligned and as wide as the widest card, so stacked cards line up.
+        _cards = new StackPanel { Margin = new Thickness(0, 2, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, MaxWidth = 520 };
         Children.Add(_body);
+        Children.Add(_cards);   // file cards from OPEN lines, under the reply text
         Children.Add(_status);
         Children.Add(_notices);
 
@@ -54,7 +59,15 @@ public sealed class AssistantMessageView : StackPanel
         _renderTimer.Tick += (_, _) => { _renderTimer.Stop(); RenderNow(); };
     }
 
-    public bool IsEmpty => _markdown.Trim().Length == 0 && _notices.Children.Count == 0;
+    public bool IsEmpty => _markdown.Trim().Length == 0 && _notices.Children.Count == 0 && _cards.Children.Count == 0;
+
+    /// <summary>Adds a file card (once per path per reply). Several cards stack under each other.</summary>
+    public void AddFileCard(FileCard card)
+    {
+        if (_cardPaths.Add(card.Path)) _cards.Children.Add(card);
+    }
+
+    public bool HasCardFor(string path) => _cardPaths.Contains(path);
 
     public void SetMarkdown(string markdown, bool immediate = false)
     {
@@ -92,14 +105,14 @@ public sealed class AssistantMessageView : StackPanel
             HorizontalAlignment = HorizontalAlignment.Left,
             Margin = new Thickness(0, 6, 0, 4),
             ToolTip = "Open preview",
-            Template = ChipTemplate(),
+            Template = ChipTemplate(new Thickness(12, 6, 14, 6)),
             Foreground = new SolidColorBrush(Color.FromArgb(0xF0, 0xFF, 0xFF, 0xFF)),
         };
         chip.Click += (_, _) => open();
         _notices.Children.Add(chip);
     }
 
-    private static ControlTemplate ChipTemplate()
+    internal static ControlTemplate ChipTemplate(Thickness padding)
     {
         var t = new ControlTemplate(typeof(Button));
         var border = new FrameworkElementFactory(typeof(Border), "Bg");
@@ -107,7 +120,7 @@ public sealed class AssistantMessageView : StackPanel
         border.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF)));
         border.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)));
         border.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        border.SetValue(Border.PaddingProperty, new Thickness(12, 6, 14, 6));
+        border.SetValue(Border.PaddingProperty, padding);
         border.AppendChild(new FrameworkElementFactory(typeof(ContentPresenter)));
         t.VisualTree = border;
         var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };

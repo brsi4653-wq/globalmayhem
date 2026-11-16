@@ -2,6 +2,7 @@ using OnRecord.Chat;
 
 namespace OnRecord.Tests;
 
+[Collection("Modes")]
 public class ReplyFilterTests
 {
     private sealed class Harness

@@ -28,6 +28,9 @@ public sealed class AppSettings
     /// </summary>
     public bool AllowReadAnywhere { get; set; }
 
+    /// <summary>Which one-time rules.txt upgrades have run (2 = the 1.1.0 OPEN rule was added). See App.OnStartup.</summary>
+    public int RulesUpgrade { get; set; }
+
     /// <summary>Shortcut that opens the popup (one of Platform.Hotkeys.Choices).</summary>
     public string Hotkey { get; set; } = Platform.Hotkeys.Default;
 
@@ -64,6 +67,7 @@ public sealed class AppSettings
             return new AppSettings();
         }
         if (s.Normalize()) LoadProblem = "Some settings had invalid values and were reset to their defaults.";
+        if (s.RemoveHiddenModes()) s.Save();
         return s;
     }
 
@@ -86,6 +90,18 @@ public sealed class AppSettings
             foreach (var k in bad) { ModeColors.Remove(k); fixedAny = true; }
         }
         return fixedAny;
+    }
+
+    /// <summary>
+    /// Hidden built-in modes (Modes.Hidden) are never stored in settings.json: drops any hand-added entry for one.
+    /// Silent (not a "problem"): the mode itself keeps working with its built-in colour.
+    /// </summary>
+    public bool RemoveHiddenModes()
+    {
+        if (ModeColors == null) return false;
+        var hidden = ModeColors.Keys.Where(Modes.IsHidden).ToList();
+        foreach (var k in hidden) ModeColors.Remove(k);
+        return hidden.Count > 0;
     }
 
     public void Save()

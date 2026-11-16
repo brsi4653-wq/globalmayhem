@@ -37,10 +37,33 @@ public sealed class ArtifactWebView : IDisposable
     /// <summary>The URL an artifact file is shown at (only files directly in the artifacts folder).</summary>
     public static string UriFor(string fileName) => $"https://{VirtualHost}/{Uri.EscapeDataString(fileName)}";
 
+    /// <summary>
+    /// Host for previewing ONE of the user's own files (a PDF from a file card). Nothing is mapped to a folder:
+    /// each request is answered by <see cref="OnWebResourceRequested"/>, which serves only that single file at a
+    /// random URL and answers 404 to everything else.
+    /// </summary>
+    public const string FileHost = "onrecord-file.example";
+    private string? _servedFile;
+    private string? _servedUri;
+
     /// <summary>Opens (or re-navigates) the preview to an artifact already validated by <see cref="ArtifactName"/>.</summary>
-    public async Task OpenAsync(IntPtr parentHwnd, string filePath)
+    public Task OpenAsync(IntPtr parentHwnd, string filePath)
     {
-        _currentUri = UriFor(Path.GetFileName(filePath));
+        _servedFile = _servedUri = null;
+        return NavigateAsync(parentHwnd, UriFor(Path.GetFileName(filePath)));
+    }
+
+    /// <summary>Shows one of the user's PDF files in the browser's built-in PDF viewer.</summary>
+    public Task OpenPdfAsync(IntPtr parentHwnd, string pdfPath)
+    {
+        _servedFile = pdfPath;
+        _servedUri = $"https://{FileHost}/{Guid.NewGuid():N}/{Uri.EscapeDataString(Path.GetFileName(pdfPath))}";
+        return NavigateAsync(parentHwnd, _servedUri);
+    }
+
+    private async Task NavigateAsync(IntPtr parentHwnd, string uri)
+    {
+        _currentUri = uri;
         if (_controller != null)
         {
             _controller.CoreWebView2.Navigate(_currentUri);
@@ -70,6 +93,9 @@ public sealed class ArtifactWebView : IDisposable
 
         // Serve ONLY the artifacts folder, under a virtual https origin.
         web.SetVirtualHostNameToFolderMapping(VirtualHost, AppPaths.Artifacts, CoreWebView2HostResourceAccessKind.Deny);
+        // The single-file host (PDF previews): answered in code, one file only.
+        web.AddWebResourceRequestedFilter($"https://{FileHost}/*", CoreWebView2WebResourceContext.All);
+        web.WebResourceRequested += OnWebResourceRequested;
 
         web.NavigationStarting += OnNavigationStarting;
         web.FrameNavigationStarting += OnFrameNavigationStarting;
@@ -87,6 +113,27 @@ public sealed class ArtifactWebView : IDisposable
         ApplyBounds();
         controller.IsVisible = _visible;
         web.Navigate(_currentUri);
+    }
+
+    private void OnWebResourceRequested(object? sender, CoreWebView2WebResourceRequestedEventArgs e)
+    {
+        var web = (CoreWebView2)sender!;
+        string uri = e.Request.Uri;
+        int hash = uri.IndexOf('#');
+        if (hash >= 0) uri = uri[..hash];
+        if (_servedUri != null && _servedFile != null && string.Equals(uri, _servedUri, StringComparison.Ordinal))
+        {
+            try
+            {
+                var stream = new FileStream(_servedFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, FileOptions.Asynchronous);
+                e.Response = web.Environment.CreateWebResourceResponse(stream, 200, "OK",
+                    "Content-Type: application/pdf\r\nX-Content-Type-Options: nosniff\r\nCache-Control: no-store");
+                return;
+            }
+            catch (Exception ex) { Trace($"couldn't serve {_servedFile}: {ex.Message}"); }
+        }
+        e.Response = web.Environment.CreateWebResourceResponse(null, 404, "Not Found", "Content-Type: text/plain");
+        Trace($"refused file request {e.Request.Uri}");
     }
 
     private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
@@ -159,6 +206,7 @@ public sealed class ArtifactWebView : IDisposable
     {
         _generation++;
         _currentUri = null;
+        _servedFile = _servedUri = null;
         var c = _controller;
         _controller = null;
         c?.Close();

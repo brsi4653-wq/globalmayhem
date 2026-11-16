@@ -47,7 +47,7 @@ public partial class SettingsWindow : Window
         var fromRules = RulesFile.ParseTints(RulesFile.ReadUser() ?? "")
             .GroupBy(t => t.Name).ToDictionary(g => g.Key, g => g.First().Description, StringComparer.OrdinalIgnoreCase);
         var defaults = RulesFile.DefaultDescriptions();
-        return Modes.Colors.Select(kv => new ModeEntry(
+        return Modes.Visible.Select(kv => new ModeEntry(
             kv.Key, Modes.ToHex(kv.Value),
             fromRules.TryGetValue(kv.Key, out var d) ? d : defaults.GetValueOrDefault(kv.Key, ""))).ToList();
     }
@@ -183,6 +183,7 @@ public partial class SettingsWindow : Window
         {
             string name = row.Name.Text.Trim();
             if (name.Length == 0) continue;
+            if (Modes.IsHidden(name)) { ShowError($"\"{name}\" is a name OnRecord uses itself. Pick another name."); return; }
             if (!Modes.IsValidNewName(name)) { ShowError($"\"{name}\" isn't a valid mode name. Use lowercase letters, numbers and hyphens (max 24)."); return; }
             if (!Modes.TryParseHex(row.Hex.Text, out var c)) { ShowError($"The colour for \"{name}\" must look like #FF8A3D."); return; }
             if (entries.Any(x => x.Name == name)) { ShowError($"The mode \"{name}\" is listed twice."); return; }

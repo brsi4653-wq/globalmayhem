@@ -27,7 +27,9 @@ public sealed class ChatController
 
     /// <param name="onMode">Called when Claude's reply carries a known [tint:mode] tag.</param>
     /// <param name="onArtifact">Called with the file name from an "ARTIFACT: name" line.</param>
-    public ChatController(ChatPanel panel, Dispatcher ui, Func<string?> model, Func<bool> allowReadAnywhere, Action<string> onMode, Action<string> onArtifact)
+    /// <param name="previewFile">Shows a file from a card in the side panel; false if it can't be previewed there.</param>
+    public ChatController(ChatPanel panel, Dispatcher ui, Func<string?> model, Func<bool> allowReadAnywhere, Action<string> onMode,
+        Action<string> onArtifact, Func<string, bool> previewFile)
     {
         _panel = panel;
         _ui = ui;
@@ -42,11 +44,37 @@ public sealed class ChatController
                 _reply?.AddArtifactChip(name, () => onArtifact(name));
                 onArtifact(name);
             }),
+            new OpenTagHandler(raw => AddFileCard(raw, previewFile)),
         ];
         _panel.Submitted += Submit;
     }
 
     public bool IsBusy => _busy;
+
+    /// <summary>An "OPEN: path" line: a card under the reply, only for a real local path that exists right now.</summary>
+    private void AddFileCard(string raw, Func<string, bool> previewFile)
+    {
+        if (_reply == null) return;
+        string? path = FileTargets.Resolve(raw, out var problem);
+        if (path == null)
+        {
+            _reply.AddNotice(NoticeKind.Info, $"Claude pointed to \"{Shorten(raw)}\", but {problem}, so there's no card for it.");
+            return;
+        }
+        if (_reply.HasCardFor(path)) return;
+        if (!FileTargets.Exists(path, out bool isFolder))
+        {
+            _reply.AddNotice(NoticeKind.Info, $"Claude pointed to {path}, but it doesn't exist on this PC, so there's no card for it.");
+            return;
+        }
+        _reply.AddFileCard(new FileCard(path, isFolder, () => _panel.DialogOwner?.Invoke(), previewFile));
+    }
+
+    private static string Shorten(string s)
+    {
+        s = new string(s.Where(c => !char.IsControl(c)).ToArray()).Trim();
+        return s.Length > 80 ? s[..80] + "…" : s;
+    }
 
     /// <summary>Starts a brand-new Claude process (no previous context).</summary>
     public void StartSession()

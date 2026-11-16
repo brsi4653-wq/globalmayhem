@@ -13,6 +13,10 @@ public static partial class RulesFile
 {
     public const int MaxDescriptionLength = 120;
 
+    /// <summary>The 1.1.0 rule for file cards (also added once to older rules.txt files, see AddMissingRules).</summary>
+    public const string OpenRule =
+        "When you find files or folders the user wants to see or open, add one line per item, alone: OPEN: <full path>";
+
     [GeneratedRegex(@"^\s*\[tint:\s*([A-Za-z0-9_\-]+)\s*\]\s?(.*)$")]
     private static partial Regex TintLine();
 
@@ -31,6 +35,8 @@ public static partial class RulesFile
         "\n" +
         "When you make anything the user should see rendered (a page, tool, visual), save it as one self-contained HTML file in {ARTIFACTS_DIR}, then add this line alone:\n" +
         "ARTIFACT: filename.html\n" +
+        "\n" +
+        OpenRule + "\n" +
         "\n" +
         "When a message ends with \"Attached files:\" and file paths, the user attached those files: read them with the Read tool (it handles images and PDFs) before answering.\n";
 
@@ -54,6 +60,7 @@ public static partial class RulesFile
         s = Regex.Replace(s, @"\[[^\]]*\]", " ");                              // [tag-like] text
         s = s.Replace("[", "").Replace("]", "").Replace("{", "").Replace("}", "");
         s = Regex.Replace(s, @"ARTIFACT\s*:", "", RegexOptions.IgnoreCase);    // artifact tag text
+        s = Regex.Replace(s, @"\bOPEN\s*:", "", RegexOptions.IgnoreCase);      // file card tag text
         s = Regex.Replace(s, @"\s{2,}", " ").Trim();
         if (s.Length > MaxDescriptionLength) s = s[..MaxDescriptionLength].TrimEnd();
         return s;
@@ -124,6 +131,34 @@ public static partial class RulesFile
         if (File.Exists(AppPaths.Rules)) return;
         Directory.CreateDirectory(AppPaths.Root);
         WriteUser(ReadBundled());
+    }
+
+    /// <summary>
+    /// Adds rules that a newer version needs to an older user copy: the OPEN rule goes after the ARTIFACT line
+    /// (or at the end). Returns the updated text, or null if nothing needed adding.
+    /// </summary>
+    public static string? WithMissingRules(string text)
+    {
+        if (text.Contains("OPEN:", StringComparison.Ordinal)) return null;
+        string nl = text.Contains("\r\n") ? "\r\n" : "\n";
+        var lines = SplitLines(text);
+        int artifact = lines.FindIndex(l => l.TrimStart().StartsWith("ARTIFACT:", StringComparison.Ordinal));
+        if (artifact >= 0) lines.InsertRange(artifact + 1, ["", OpenRule]);
+        else
+        {
+            while (lines.Count > 0 && lines[^1].Trim().Length == 0) lines.RemoveAt(lines.Count - 1);
+            lines.AddRange(["", OpenRule, ""]);
+        }
+        return string.Join(nl, lines);
+    }
+
+    /// <summary>Applies <see cref="WithMissingRules"/> to the user's rules.txt. Returns an error message or null.</summary>
+    public static string? AddMissingRules()
+    {
+        var text = ReadUser();
+        if (text == null || WithMissingRules(text) is not { } updated) return null;
+        try { WriteUser(updated); return null; }
+        catch (Exception ex) { return $"Couldn't add the new file card rule to rules.txt: {ex.Message}"; }
     }
 
     /// <summary>Rewrites the tint list in the user's rules.txt. Returns an error message, or null on success.</summary>

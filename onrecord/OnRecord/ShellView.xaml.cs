@@ -83,15 +83,49 @@ public partial class ShellView : UserControl
     public bool IsPreviewOpen => PreviewPanel.Visibility == Visibility.Visible;
     private Rect _lastSlot = Rect.Empty;
 
-    public void ShowPreview(string fileName)
+    /// <summary>Opens the panel for an artifact (web view over WebSlot) or one of the user's files.</summary>
+    /// <param name="userFile">A file from a file card: buttons become "Open" / "Show in File Explorer".</param>
+    public void ShowPreview(string fileName, bool userFile = false)
     {
         PreviewFileName.Text = fileName;
+        PreviewFileName.ToolTip = fileName;
+        PreviewOpenButton.Content = userFile ? "Open" : "Open in browser";
+        PreviewShowFileButton.Content = userFile ? "Show in File Explorer" : "Show file";
+        ClearNativePreview();
         PreviewPanel.Visibility = Visibility.Visible;
         UpdateSplitLayout();
     }
 
+    /// <summary>Shows an already decoded image natively (the web view stays closed).</summary>
+    public void ShowNativeImage(System.Windows.Media.Imaging.BitmapSource image)
+    {
+        PreviewImage.Source = image;
+        PreviewImage.Visibility = Visibility.Visible;
+        PreviewText.Visibility = Visibility.Collapsed;
+        NativePreview.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Shows text natively, read-only (scripts are only ever shown, never run).</summary>
+    public void ShowNativeText(string text)
+    {
+        PreviewText.Text = text;
+        PreviewText.ScrollToHome();
+        PreviewText.Visibility = Visibility.Visible;
+        PreviewImage.Visibility = Visibility.Collapsed;
+        NativePreview.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Drops the native preview's image/text so their memory can be freed.</summary>
+    private void ClearNativePreview()
+    {
+        PreviewImage.Source = null;
+        PreviewText.Clear();
+        NativePreview.Visibility = Visibility.Collapsed;
+    }
+
     public void HidePreview()
     {
+        ClearNativePreview();
         PreviewPanel.Visibility = Visibility.Collapsed;
         UpdateSplitLayout();
     }

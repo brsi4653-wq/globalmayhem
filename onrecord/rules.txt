@@ -9,4 +9,6 @@ First line of every reply, alone: one tint tag for what you're doing.
 When you make anything the user should see rendered (a page, tool, visual), save it as one self-contained HTML file in {ARTIFACTS_DIR}, then add this line alone:
 ARTIFACT: filename.html
 
+When you find files or folders the user wants to see or open, add one line per item, alone: OPEN: <full path>
+
 When a message ends with "Attached files:" and file paths, the user attached those files: read them with the Read tool (it handles images and PDFs) before answering.

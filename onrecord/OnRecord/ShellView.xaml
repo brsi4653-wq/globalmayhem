@@ -163,9 +163,9 @@
                         <DockPanel Margin="16,10,10,6" LastChildFill="True">
                             <Button x:Name="PreviewCloseButton" DockPanel.Dock="Right" Style="{StaticResource LightIconButton}"
                                     Content="&#xE8BB;" ToolTip="Close preview" Click="PreviewClose_Click"/>
-                            <Button DockPanel.Dock="Right" Style="{StaticResource LightTextButton}" Content="Show file"
+                            <Button x:Name="PreviewShowFileButton" DockPanel.Dock="Right" Style="{StaticResource LightTextButton}" Content="Show file"
                                     Margin="0,0,6,0" Click="PreviewShowFile_Click"/>
-                            <Button DockPanel.Dock="Right" Style="{StaticResource LightTextButton}" Content="Open in browser"
+                            <Button x:Name="PreviewOpenButton" DockPanel.Dock="Right" Style="{StaticResource LightTextButton}" Content="Open in browser"
                                     Margin="0,0,6,0" Click="PreviewOpenBrowser_Click"/>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="&#xE8A5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14"
@@ -179,6 +179,18 @@
                         <Border x:Name="WebSlot" Grid.Row="1" Margin="8,0,8,8" Background="White" CornerRadius="10">
                             <TextBlock x:Name="WebSlotHint" Text="Loading…" Foreground="#999" FontSize="13"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <!-- Native previews of the user's own files (images, text): no web view needed. -->
+                        <Border x:Name="NativePreview" Grid.Row="1" Margin="8,0,8,8" Background="White" CornerRadius="10"
+                                Visibility="Collapsed" ClipToBounds="True">
+                            <Grid>
+                                <Image x:Name="PreviewImage" Stretch="Uniform" StretchDirection="DownOnly" Margin="10"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <TextBox x:Name="PreviewText" IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                         Foreground="#1E1E1E" FontFamily="Cascadia Mono, Consolas" FontSize="12.5"
+                                         Padding="12,10" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                         HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed"/>
+                            </Grid>
                         </Border>
                     </Grid>
                 </Border>

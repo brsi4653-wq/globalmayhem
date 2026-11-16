@@ -14,6 +14,7 @@ AI was used in the making of OnRecord.
 
 - Windows 11
 - [Claude Code](https://claude.com/claude-code) installed and signed in with a paid Claude plan (Pro or Max)
+- Windows transparency effects switched on (Settings, Personalization, Colours). The glass look needs it.
 
 The installer checks both for you and shows the steps if something is missing.
 
@@ -35,6 +36,7 @@ Get-FileHash OnRecord-Setup.exe -Algorithm SHA256
 - Type a message and press Enter. Replies stream in as Claude writes them.
 - Attach files with the **+** button, by dragging them onto the popup, or with Ctrl+V (copied files or a screenshot).
 - When Claude makes a page or a tool, it opens in a preview panel beside the chat.
+- When Claude finds files or folders for you, each one shows as a card with a thumbnail, an Open button and "Show in File Explorer". Nothing opens by itself, only when you click.
 - **X** hides OnRecord to the tray and ends the chat. The next Alt+Space starts a new one.
 - Settings (the gear, or the tray icon) hold the model, the colours, the shortcut and the permissions.
 

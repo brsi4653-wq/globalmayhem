@@ -1,6 +1,9 @@
-# Builds dist\OnRecord-Setup-<version>.exe. Run from the code folder:  powershell -File tools\build-installer.ps1
+# Builds dist\releases\<version>_<build date>\OnRecord-Setup-<version>.exe
+# Run from the code folder:  powershell -File tools\build-installer.ps1
 # 1) publishes the app self-contained for x64 (no .NET install needed on the target PC) into publish\win-x64
 # 2) compiles installer\OnRecord.iss with Inno Setup 6 (per-user install: winget install JRSoftware.InnoSetup --scope user)
+# Every installer ever built is kept so any version can be tested later: this script never deletes or
+# overwrites one. If the target file already exists it stops (bump <Version> in OnRecord.csproj).
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot
 Set-Location $root
@@ -8,6 +11,12 @@ Set-Location $root
 [xml]$proj = Get-Content "OnRecord\OnRecord.csproj"
 $version = ($proj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
 if (-not $version) { throw "No <Version> in OnRecord.csproj" }
+
+$releaseDir = Join-Path $root ("dist\releases\{0}_{1}" -f $version, (Get-Date -Format "yyyy-MM-dd"))
+$setupExe = Join-Path $releaseDir "OnRecord-Setup-$version.exe"
+if (Test-Path $setupExe) { throw "$setupExe already exists. Old installers are never overwritten: bump <Version> in OnRecord.csproj." }
+$sameVersion = Get-ChildItem (Join-Path $root "dist\releases") -Recurse -Filter "OnRecord-Setup-$version.exe" -ErrorAction SilentlyContinue
+if ($sameVersion) { Write-Warning "An installer for $version already exists from another day: $($sameVersion.FullName -join ', '). Building a new one beside it." }
 
 $publish = Join-Path $root "publish\win-x64"
 if (Test-Path $publish) { Remove-Item -Recurse -Force $publish }
@@ -20,6 +29,7 @@ foreach ($f in "OnRecord.exe", "rules.txt", "Assets\onrecord.ico", "Assets\onrec
 $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") |
         Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "Inno Setup 6 not found. Install it with: winget install JRSoftware.InnoSetup --scope user" }
-& $iscc /Q "/DAppVersion=$version" "/DPublishDir=$publish" "installer\OnRecord.iss"
+New-Item -ItemType Directory -Force $releaseDir | Out-Null
+& $iscc /Q "/DAppVersion=$version" "/DPublishDir=$publish" "/O$releaseDir" "installer\OnRecord.iss"
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
-Get-Item "dist\OnRecord-Setup-$version.exe"
+Get-Item $setupExe

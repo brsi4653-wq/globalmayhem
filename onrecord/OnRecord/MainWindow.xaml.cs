@@ -1,4 +1,6 @@
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Windows.Media.Imaging;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -46,7 +48,8 @@ public partial class MainWindow : Window
             model: () => _settings.Model,             // applies to each new session
             allowReadAnywhere: () => _settings.AllowReadAnywhere,
             onMode: mode => Shell.ApplyMode(mode),    // animated tint change
-            onArtifact: name => _ = OpenArtifactAsync(name));
+            onArtifact: name => _ = OpenArtifactAsync(name),
+            previewFile: PreviewFile);                // file cards: bigger preview in the side panel
         Shell.NewChatRequested += () =>
         {
             ClosePreview();
@@ -56,9 +59,14 @@ public partial class MainWindow : Window
         };
 
         Shell.PreviewCloseRequested += () => { ClosePreview(); Shell.FocusInput(_host); };
-        Shell.PreviewOpenInBrowserRequested += () => { if (_previewPath != null) ArtifactWebView.OpenFileInBrowser(_previewPath); };
+        Shell.PreviewOpenInBrowserRequested += () =>
+        {
+            if (_previewUserFile != null) { ReportFileProblem(Chat.FileTargets.Open(_previewUserFile, this)); return; }
+            if (_previewPath != null) ArtifactWebView.OpenFileInBrowser(_previewPath);
+        };
         Shell.PreviewShowFileRequested += () =>
         {
+            if (_previewUserFile != null) { ReportFileProblem(Chat.FileTargets.ShowInExplorer(_previewUserFile)); return; }
             // _previewPath was validated (plain .html name inside the artifacts folder, so no quotes in it).
             if (_previewPath != null && ArtifactName.IsSafeExistingFile(_previewPath))
                 System.Diagnostics.Process.Start(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"),
@@ -156,6 +164,7 @@ public partial class MainWindow : Window
         }
 
         _previewPath = path;
+        _previewUserFile = null;
         MakeRoomForPreview();
         Shell.ShowPreview(fileName);
         try
@@ -177,6 +186,125 @@ public partial class MainWindow : Window
         }
     }
 
+    // ---------------------------------------------------------------- previews of the user's own files (file cards)
+
+    /// <summary>The user's file shown in the panel (from a file card), or null.</summary>
+    private string? _previewUserFile;
+
+    /// <summary>Longest side an image is decoded at for the preview (keeps big photos from using lots of RAM).</summary>
+    private const int MaxPreviewImagePx = 2000;
+
+    /// <summary>
+    /// A file card's thumbnail was clicked: images and text are shown natively, PDFs in the sandboxed web view.
+    /// Returns false if this file can't be previewed here (the card then opens it in its default program).
+    /// </summary>
+    private bool PreviewFile(string path)
+    {
+        var kind = Chat.FileTargets.KindOf(path);
+        if (kind == Chat.PreviewKind.None || !System.IO.File.Exists(path)) return false;
+
+        string? text = null;
+        if (kind == Chat.PreviewKind.Text && (text = ReadTextForPreview(path)) == null) return false; // binary after all
+
+        _web.Close();            // never keep an old page around behind a native preview or a new PDF
+        _previewPath = null;
+        _previewUserFile = path;
+        MakeRoomForPreview();
+        Shell.ShowPreview(System.IO.Path.GetFileName(path), userFile: true);
+
+        switch (kind)
+        {
+            case Chat.PreviewKind.Text: Shell.ShowNativeText(text!); break;
+            case Chat.PreviewKind.Image: _ = ShowImageAsync(path); break;
+            case Chat.PreviewKind.Pdf: _ = ShowPdfAsync(path); break;
+        }
+        return true;
+    }
+
+    private async Task ShowImageAsync(string path)
+    {
+        var image = await Task.Run(() => DecodeImage(path));
+        if (_previewUserFile != path) return; // closed or replaced meanwhile
+        if (image == null)
+        {
+            // A format WPF can't decode itself (or a broken file): Windows' own large thumbnail, if there is one.
+            var thumb = await Platform.ShellThumbnails.GetAsync(path, 1024);
+            if (_previewUserFile != path) return;
+            image = thumb is { IsIcon: false } ? thumb.Image : null;
+        }
+        if (image != null) { Shell.ShowNativeImage(image); return; }
+        ClosePreview();
+        ReportFileProblem(Chat.FileTargets.Open(path, this)); // let its default program try
+    }
+
+    /// <summary>Decodes an image for the panel, at most <see cref="MaxPreviewImagePx"/> on its longest side.</summary>
+    private static BitmapSource? DecodeImage(string path)
+    {
+        try
+        {
+            int w, h;
+            using (var probe = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            {
+                var frame = BitmapFrame.Create(probe, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
+                w = frame.PixelWidth; h = frame.PixelHeight;
+            }
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.UriSource = new Uri(path);
+            bmp.CacheOption = BitmapCacheOption.OnLoad;          // the file is closed right after
+            bmp.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+            if (w >= h && w > MaxPreviewImagePx) bmp.DecodePixelWidth = MaxPreviewImagePx;
+            else if (h > w && h > MaxPreviewImagePx) bmp.DecodePixelHeight = MaxPreviewImagePx;
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Up to 1 MB of a text file, or null if it looks binary.</summary>
+    private static string? ReadTextForPreview(string path)
+    {
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            var buffer = new byte[(int)Math.Min(fs.Length, Chat.FileTargets.MaxTextPreviewBytes)];
+            int read = 0, n;
+            while (read < buffer.Length && (n = fs.Read(buffer, read, buffer.Length - read)) > 0) read += n;
+            bool utf16 = read >= 2 && ((buffer[0] == 0xFF && buffer[1] == 0xFE) || (buffer[0] == 0xFE && buffer[1] == 0xFF));
+            if (!utf16 && Array.IndexOf(buffer, (byte)0, 0, Math.Min(read, 8192)) >= 0) return null;
+            using var reader = new StreamReader(new MemoryStream(buffer, 0, read), System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            string text = reader.ReadToEnd();
+            if (fs.Length > read) text += $"\n\n… Only the first {Chat.FileTargets.FormatSize(read)} is shown. Use Open to see all of it.";
+            return text;
+        }
+        catch { return null; }
+    }
+
+    private async Task ShowPdfAsync(string path)
+    {
+        try
+        {
+            await _web.OpenPdfAsync(new WindowInteropHelper(this).Handle, path);
+            if (_previewUserFile != path) return;
+            // The web view is a sibling of the UI's child window; keep the UI at the bottom so the page shows.
+            SetWindowPos(_host.Handle, new IntPtr(1) /* HWND_BOTTOM */, 0, 0, 0, 0, 0x0013);
+            UpdateWebBounds();
+        }
+        catch (Exception ex)
+        {
+            ClosePreview();
+            Shell.Chat.AddNotice(Chat.NoticeKind.Error, ex is WebView2RuntimeNotFoundException
+                ? "The WebView2 runtime isn't installed, so PDFs can't be previewed here. Use Open instead."
+                : $"Couldn't preview the PDF: {ex.Message}");
+        }
+    }
+
+    private void ReportFileProblem(string? problem)
+    {
+        if (problem != null) Shell.Chat.AddNotice(Chat.NoticeKind.Error, problem);
+    }
+
     private static string Shorten(string s)
     {
         s = new string(s.Where(c => !char.IsControl(c)).ToArray());
@@ -187,6 +315,7 @@ public partial class MainWindow : Window
     {
         _web.Close(); // disposes the WebView2 and releases its browser processes
         _previewPath = null;
+        _previewUserFile = null;
         if (Shell.IsPreviewOpen) Shell.HidePreview();
         // Only undo our widening if the user hasn't resized the window themselves since.
         if (_boundsBeforePreview is { } b && _boundsBeforeExpand == null && Math.Abs(Width - b.GrownWidth) < 1)

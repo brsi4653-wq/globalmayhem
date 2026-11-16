@@ -7,7 +7,7 @@
 #define AppExe "OnRecord.exe"
 #define AppMutex "Local\OnRecord.7f3c2a91.mutex"
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.1.0"
 #endif
 #ifndef PublishDir
   #define PublishDir "..\publish\win-x64"
@@ -41,7 +41,8 @@ WizardSmallImageFile=logo-55.png,logo-110.png
 WizardImageFile=wizard-164.png,wizard-410.png
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName}
-OutputDir=..\dist
+; tools\build-installer.ps1 overrides this with /O dist\releases\<version>_<build date> (old installers are kept)
+OutputDir=..\dist\releases
 OutputBaseFilename=OnRecord-Setup-{#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes

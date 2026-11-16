@@ -55,3 +55,27 @@ public sealed partial class ArtifactTagHandler(Action<string> onArtifact) : ITag
         return Prefix.StartsWith(t, StringComparison.Ordinal) || t.StartsWith(Prefix, StringComparison.Ordinal);
     }
 }
+
+/// <summary>"OPEN: C:\full\path" on any line: hidden; shows a file card for that file or folder (never opens it).</summary>
+public sealed partial class OpenTagHandler(Action<string> onOpen) : ITagHandler
+{
+    private const string Prefix = "OPEN:";
+
+    [GeneratedRegex(@"^\s*OPEN:\s*(.+?)\s*$")]
+    private static partial Regex Pattern();
+
+    public bool TryHandle(string line, bool isFirstLine)
+    {
+        var m = Pattern().Match(line);
+        if (!m.Success) return false;
+        onOpen(m.Groups[1].Value);
+        return true;
+    }
+
+    public bool CouldBecomeTag(string partial, bool isFirstLine)
+    {
+        string t = partial.TrimStart();
+        if (t.Length == 0) return false;
+        return Prefix.StartsWith(t, StringComparison.Ordinal) || t.StartsWith(Prefix, StringComparison.Ordinal);
+    }
+}

@@ -55,6 +55,7 @@ Later it will gain more modes and tools (system search, web search, Discord bots
 - Tint gradient over the glass: ~32% tint opacity at top fading to ~8% at bottom, over a dark base.
 - Mode colours live in ONE map (later editable in settings):
   claude #FF8A3D (default), code #9B6BFF, search #3D8BFF, web #2EC4A6.
+  Plus the hidden built-in `easteregg` #FFC83D (see "Hidden Easter egg mode").
   Mode change animates the tint over ~500ms.
 - Top bar: round X (left), mode pill with coloured dot + name (centre), round expand (right).
   No Windows title bar; drag from the top bar. Resizable from all edges, grip bottom-right.
@@ -90,6 +91,42 @@ Later it will gain more modes and tools (system search, web search, Discord bots
   is narrow when an artifact opens, it is widened (within the screen) and narrowed back on close
   unless the user resized it meanwhile.
 - Each ARTIFACT also leaves a chip in the reply so a closed preview can be reopened.
+
+## Open Everything: OPEN tag and file cards (1.1.0)
+- rules.txt (and the default rules / `RulesFile.FallbackDefault`) tell Claude: "When you find files or folders the
+  user wants to see or open, add one line per item, alone: OPEN: <full path>". Existing rules.txt files get that
+  line once on start (`RulesFile.AddMissingRules`, tracked by `RulesUpgrade` = 2 in settings.json, so a user who
+  deletes it later isn't overridden). `ClaudeCli.LoadRules` warns if it's missing ("file cards may not work").
+- `OpenTagHandler` (`Chat/TagHandlers.cs`) hides OPEN lines like the other tags, including while streaming.
+  `ChatController.AddFileCard` validates the path (`Chat/FileTargets.Resolve`) and adds a `Chat/FileCard` under
+  the reply (one per path per reply; several stack in a left-aligned column of equal width). Paths that are
+  refused or don't exist get a small info notice instead of a card.
+- Card: thumbnail, name, folder, "size · modified date" (folders: "Folder · modified …"), "Open" / "Open folder"
+  and "Show in File Explorer" (`explorer.exe /select,"path"`). Problems (e.g. the file was deleted since) show in
+  red on the card, which dims.
+- Thumbnails: `Platform/ShellThumbnails.cs` uses IShellItemImageFactory (Windows' own thumbnail system, same as
+  File Explorer): THUMBNAILONLY first, then the file-type icon; a Segoe glyph if both fail. One background STA
+  thread, one request at a time, 64px x DPI, and only once the card is scrolled into view (`FileCard.CheckOnScreen`).
+- Clicking the thumbnail: images (decoded natively, max 2000px on the longest side; Windows' 1024px thumbnail if
+  WPF can't decode the format) and text files (first 1 MB, read-only, binary files refused) show natively in the
+  side panel (`ShellView.NativePreview`); PDFs show in the same sandboxed WebView2 via a single-file host
+  `https://onrecord-file.example/<random>/<name>` answered by `WebResourceRequested` (only that one file, 404 for
+  everything else, nothing mapped to a folder). Anything else (videos, Office files…) opens in its default program.
+  In file mode the panel's buttons read "Open" and "Show in File Explorer".
+- Safety: only fully qualified local drive paths (`C:\...`) that exist; no UNC/network, `\\?\`/`\\.\` device paths,
+  alternate data streams or control characters. Nothing is ever opened automatically, only on a click.
+  Programs, scripts and shortcuts (`FileTargets.ProgramExtensions`: .exe .bat .cmd .ps1 .vbs .js .msi .lnk .url …)
+  ask first ("Run it" / Cancel, Cancel is the default). Existence is re-checked on every click.
+
+## Hidden Easter egg mode (1.1.0)
+- `Modes.Hidden` holds built-in modes that are always known to the tint tag but never listed, edited, removed or
+  reset in Settings (`Modes.Visible` is what Settings shows), never saved in settings.json (a hand-added entry is
+  dropped by `AppSettings.RemoveHiddenModes`), and whose names are reserved in Save and "+ Add mode".
+  Today that's only `easteregg` (#FFC83D gold); its mode pill reads "OnRecord" (`Modes.DisplayName`).
+- Its rules are NOT in rules.txt. They're the `===EASTER EGGS START=== … ===EASTER EGGS END===` block in
+  `Claude/BuiltInRules.cs`, appended to the system prompt after rules.txt for every user by `ClaudeCli.LoadRules`.
+  "Restore default rules" never touches it. Edit that file to change the eggs (birthday on November 16, Global
+  Mayhem mention, "who made you").
 
 ## Settings (stage 5)
 - `SettingsWindow` (tray "Settings…" or the gear in the popup). Saves `Model` and `ModeColors` in
@@ -127,12 +164,21 @@ Later it will gain more modes and tools (system search, web search, Discord bots
 - Settings and rules.txt: damaged or hand-edited files never crash the app; defaults are used and the user
   is told (tray notification / chat notice). A damaged settings.json is kept as `settings.json.damaged-*`.
 - Programs the app starts itself use full paths (notepad, explorer).
-- Test switches (env vars, off by default): `ONRECORD_TRACE_VISIBLE`, `ONRECORD_TRACE_NAV`, `ONRECORD_TEST_NO_EXTERNAL`.
+- OPEN paths are untrusted (see "Open Everything"): validated, never auto-opened, programs confirm first.
+- Test switches (env vars, off by default): `ONRECORD_TRACE_VISIBLE`, `ONRECORD_TRACE_NAV`, `ONRECORD_TEST_NO_EXTERNAL`
+  (also makes file cards log to `logs\open-trace.log` instead of opening), `ONRECORD_TRACE_THUMBS` (thumbnail results).
 
 ## Installer
 - `tools\build-installer.ps1` publishes self-contained win-x64 into `publish\win-x64` and compiles
   `installer\OnRecord.iss` (Inno Setup 6, per-user: `winget install JRSoftware.InnoSetup --scope user`)
-  into `dist\OnRecord-Setup-<Version>.exe`. Version comes from `<Version>` in OnRecord.csproj.
+  into `dist\releases\<Version>_<build date>\OnRecord-Setup-<Version>.exe`, e.g.
+  `dist\releases\1.1.0_2026-11-16\OnRecord-Setup-1.1.0.exe`. Version comes from `<Version>` in OnRecord.csproj
+  (the About line and the installer read it from there; the .iss default is only a fallback).
+- Installer archive: EVERY installer ever built is kept so any version can be tested later. Never delete, move or
+  overwrite one; the script stops if the target exists. 1.0.0 is in `dist\releases\1.0.0_2026-11-15\`.
+  (`dist\OnRecord-Setup.exe` is an untouched leftover copy of 1.0.0.) `dist\` is not in git.
+- Updating this PC: uninstall the installed copy first with its own uninstaller (`unins000.exe /SILENT` keeps the
+  data folder, same as answering No), then run the new installer. The data folder survives both.
 - Per-user, no admin: app in `%LOCALAPPDATA%\Programs\GlobalMayhem\OnRecord`, Start menu shortcut,
   optional "start with Windows" (HKCU Run, same value the app manages). On first run the app adopts that choice.
 - Wizard: Welcome (logo image from `tools\make-wizard-image.ps1`) -> Requirements page (Claude Code found
@@ -160,6 +206,8 @@ Later it will gain more modes and tools (system search, web search, Discord bots
 ## Reply tags (hidden from the chat)
 - Line 1 `[tint:<mode>]` switches mode/colour (animated). Unknown/missing: keep the current mode.
 - Any line `ARTIFACT: file.html` opens that file from the artifacts folder in the preview panel.
+- Any line `OPEN: <full path>` shows a file card for that file or folder (never opens it by itself).
+- The system prompt is rules.txt followed by the app's built-in blocks (`Claude/BuiltInRules.cs`).
 - Implemented as a list of tag handlers so new tags can be added, each with its own action.
 
 ## Build order (stop after each stage, run it, the owner tests, then commit)

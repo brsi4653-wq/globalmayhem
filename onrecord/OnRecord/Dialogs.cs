@@ -128,6 +128,7 @@ public static class Dialogs
                 name.Length == 0 ? "Give the mode a name." :
                 !Modes.IsValidNewName(name) ? "Use only lowercase letters, numbers and hyphens (max 24), e.g. discord." :
                 existingNames.Contains(name, StringComparer.OrdinalIgnoreCase) ? $"There is already a mode called \"{name}\"." :
+                Modes.IsHidden(name) ? $"\"{name}\" is a name OnRecord uses itself. Pick another name." :
                 !Modes.TryParseHex(hexBox.Text, out _) ? "The colour must look like #FF8A3D." :
                 RulesFile.Sanitize(descBox.Text).Length == 0 ? "Describe when Claude should use this mode." :
                 null;

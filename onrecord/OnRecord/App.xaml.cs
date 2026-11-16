@@ -50,6 +50,14 @@ public partial class App : Application
             _settings.Save();
         }
         Modes.Load(_settings.ModeColors);
+        string? rulesProblem = null;
+        if (_settings.RulesUpgrade < 2)
+        {
+            // 1.1.0: existing rules.txt files get the OPEN (file card) rule once. Removing it later is respected.
+            rulesProblem = RulesFile.AddMissingRules();
+            _settings.RulesUpgrade = 2;
+            _settings.Save();
+        }
         Autostart.Apply(_settings.StartWithWindows);
 
         _window = new MainWindow(_settings);
@@ -74,6 +82,7 @@ public partial class App : Application
                 warning: true);
         }
         if (migrationProblem != null) _tray.Notify("OnRecord", migrationProblem, warning: true);
+        if (rulesProblem != null) _tray.Notify("OnRecord", rulesProblem, warning: true);
         if (AppSettings.LoadProblem != null) _tray.Notify("OnRecord settings", AppSettings.LoadProblem, warning: true);
 
         _showWait = ThreadPool.RegisterWaitForSingleObject(_showSignal,

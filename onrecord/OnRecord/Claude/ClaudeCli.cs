@@ -107,10 +107,12 @@ public static partial class ClaudeCli
             var missing = new List<string>();
             if (RulesFile.ParseTints(text).Count == 0) missing.Add("colour changes (tint tags)");
             if (!text.Contains("ARTIFACT:", StringComparison.Ordinal)) missing.Add("artifact previews");
+            if (!text.Contains("OPEN:", StringComparison.Ordinal)) missing.Add("file cards");
             if (missing.Count > 0)
                 problem = $"rules.txt has been edited and {string.Join(" and ", missing)} may not work. Use \"Restore default rules\" in Settings to fix it.";
         }
-        return text.Replace("{ARTIFACTS_DIR}", AppPaths.Artifacts);
+        // The app's own rules always come after the user's rules.txt (never part of that file).
+        return BuiltInRules.AppendTo(text.Replace("{ARTIFACTS_DIR}", AppPaths.Artifacts));
     }
 
     // ---------------------------------------------------------------- arguments
